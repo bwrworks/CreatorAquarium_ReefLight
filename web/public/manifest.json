@@ -1,0 +1,16 @@
+{
+  "name": "Reef Light Controller",
+  "short_name": "ReefLight",
+  "description": "Cloud-connected 4-channel LED and fan automation for reef aquariums",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070d18",
+  "theme_color": "#070d18",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

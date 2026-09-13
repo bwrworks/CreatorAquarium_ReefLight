@@ -1,0 +1,39 @@
+#pragma once
+
+#include <Arduino.h>
+#include "../include/config.h"
+
+struct ChannelValues {
+    float blue;   // 0.0 - 100.0%
+    float white;  // 0.0 - 100.0%
+    float red;    // 0.0 - 100.0%
+    float uv;     // 0.0 - 100.0%
+    float fan;    // 0.0 - 100.0%
+};
+
+class LedcDriver {
+public:
+    LedcDriver();
+    void begin();
+    
+    // Set channel percentage 0.0 - 100.0
+    void setChannels(float blue, float white, float red, float uv);
+    void setFan(float fan);
+    void setMasterOn(bool enabled);
+    bool isMasterOn() const { return masterOn; }
+
+    // Direct access to current applied values
+    ChannelValues getAppliedValues() const;
+    ChannelValues getTargetValues() const;
+
+private:
+    bool masterOn;
+    ChannelValues targetValues;
+    ChannelValues appliedValues;
+
+    uint32_t pctToLedDuty(float pct);
+    uint32_t pctToFanDuty(float pct);
+    void applyOutputs();
+};
+
+extern LedcDriver ledcDriver;
