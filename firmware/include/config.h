@@ -11,8 +11,8 @@
     #error "CRITICAL: 'firmware/include/secrets.h' is missing! Copy 'secrets.example.h' to 'secrets.h' and define production tokens."
 #endif
 
-#if !defined(OTA_SECRET_TOKEN) || (defined(OTA_SECRET_TOKEN) && strcmp(OTA_SECRET_TOKEN, "REPLACE_WITH_SECURE_RANDOM_TOKEN_HERE") == 0)
-    #error "CRITICAL: OTA_SECRET_TOKEN cannot be empty or the placeholder value. Provide a real secure token in secrets.h"
+#if !defined(OTA_SECRET_TOKEN)
+    #error "OTA_SECRET_TOKEN is not defined. Copy secrets.example.h to secrets.h and fill in real values."
 #endif
 
 #include "certificates.h"

@@ -130,6 +130,12 @@ void processSerialCommand(const String& cmd) {
 }
 
 void setup() {
+    if (strcmp(OTA_SECRET_TOKEN, "REPLACE_WITH_SECURE_RANDOM_TOKEN_HERE") == 0) {
+        Serial.begin(115200);
+        Serial.println("FATAL: OTA_SECRET_TOKEN still has the placeholder value in secrets.h — edit it before flashing.");
+        while (true) { delay(1000); }
+    }
+
     Serial.begin(115200);
     delay(500);
     Serial.println("\n==================================================");

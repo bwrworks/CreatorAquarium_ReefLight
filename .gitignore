@@ -32,6 +32,7 @@ include/secrets.h
 *.sublime-workspace
 .DS_Store
 Thumbs.db
+.refact/
 
 # Log files
 npm-debug.log*
