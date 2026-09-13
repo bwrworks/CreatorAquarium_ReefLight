@@ -51,4 +51,5 @@ export type MqttConfig = {
   username?: string;
   password?: string;
   deviceId: string;
+  otaSecretToken?: string;
 };

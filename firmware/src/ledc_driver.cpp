@@ -3,7 +3,7 @@
 LedcDriver ledcDriver;
 
 LedcDriver::LedcDriver() 
-    : masterOn(true) {
+    : initialized(false), masterOn(true) {
     targetValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     appliedValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 }
@@ -28,12 +28,12 @@ void LedcDriver::begin() {
 
     // Initial state: 0%
     applyOutputs();
+    initialized = true;
 }
 
 uint32_t LedcDriver::pctToLedDuty(float pct) {
     if (pct <= 0.0f) return 0;
     if (pct >= 100.0f) return LEDC_LED_MAX_DUTY;
-    // Direct linear mapping with 13-bit depth (0 - 8191)
     return (uint32_t)((pct / 100.0f) * (float)LEDC_LED_MAX_DUTY + 0.5f);
 }
 
@@ -63,7 +63,6 @@ void LedcDriver::setMasterOn(bool enabled) {
 
 void LedcDriver::applyOutputs() {
     if (!masterOn) {
-        // Master off forces all LEDs to zero output without modifying target values
         ledcWrite(LEDC_CHANNEL_BLUE,  0);
         ledcWrite(LEDC_CHANNEL_RED,   0);
         ledcWrite(LEDC_CHANNEL_WHITE, 0);
@@ -83,7 +82,6 @@ void LedcDriver::applyOutputs() {
         appliedValues.uv    = targetValues.uv;
     }
 
-    // Fan is not cut off by master switch for thermal safety
     ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(targetValues.fan));
     appliedValues.fan = targetValues.fan;
 }

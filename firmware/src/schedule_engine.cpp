@@ -8,7 +8,8 @@ ScheduleEngine::ScheduleEngine()
       manualOverrideUntilEpoch(0),
       currentFan(40.0f),
       currentActiveScheduleId("natural_reef"),
-      lastNvsSaveMillis(0) {
+      lastNvsSaveMillis(0),
+      tickCount(0) {
     manualValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 }
 
@@ -57,6 +58,8 @@ void ScheduleEngine::tick() {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         return;
     }
+
+    tickCount++;
 
     time_t nowEpoch = rtcManager.getEpoch();
     int secOfDay = rtcManager.getSecondsOfDay();

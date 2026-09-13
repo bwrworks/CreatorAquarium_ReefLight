@@ -44,6 +44,7 @@ class StorageManager {
 public:
     StorageManager();
     bool begin();
+    bool isMounted() const { return mounted; }
 
     // Schedule Operations
     bool saveSchedule(const String& jsonStr);
@@ -80,6 +81,7 @@ public:
     void markBootPending();
 
 private:
+    bool mounted;
     Preferences prefs;
     void seedDefaultData();
 };

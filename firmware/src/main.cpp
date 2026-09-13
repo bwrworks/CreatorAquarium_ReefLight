@@ -167,6 +167,9 @@ void setup() {
 }
 
 void loop() {
+    // Check and confirm local health for OTA partition validity (SRS NFR-1)
+    otaManager.checkAndConfirmLocalHealth();
+
     // Background RTC drift maintenance
     rtcManager.loop();
 

@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { AuthProvider } from '../lib/AuthContext';
 import { MqttProvider } from '../lib/MqttContext';
-import { AuthGate } from '../components/AuthGate';
-import { TopHeader, BottomNav } from '../components/Navigation';
+import { AppShell } from '../components/AppShell';
 
 export const metadata: Metadata = {
   title: 'Reef Light Controller | Cloud-Connected ESP32',
@@ -19,20 +17,12 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
-        <meta name="theme-color" content="#070d18" />
+        <meta name="theme-color" content="#ffffff" />
       </head>
       <body>
-        <AuthProvider>
-          <AuthGate>
-            <MqttProvider>
-              <div className="app-container">
-                <TopHeader />
-                <main style={{ flex: 1, padding: '1rem' }}>{children}</main>
-                <BottomNav />
-              </div>
-            </MqttProvider>
-          </AuthGate>
-        </AuthProvider>
+        <MqttProvider>
+          <AppShell>{children}</AppShell>
+        </MqttProvider>
       </body>
     </html>
   );

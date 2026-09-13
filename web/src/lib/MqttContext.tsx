@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import mqtt, { MqttClient } from 'mqtt';
 import { DeviceState, Channels, Schedule, WeeklyAssignment, MqttConfig } from './types';
 
-// Default initial state
 const defaultInitialState: DeviceState = {
   mode: 'auto',
   live: { blue: 45, white: 15, red: 5, uv: 30, fan: 40 },
@@ -14,7 +13,7 @@ const defaultInitialState: DeviceState = {
   time: new Date().toISOString(),
   wifiConnected: true,
   cloudConnected: true,
-  firmwareVersion: '1.0.0',
+  firmwareVersion: '1.1.0',
   masterOn: true,
 };
 
@@ -34,23 +33,24 @@ interface MqttContextType {
   publishAcclimation: (
     payload: { action: 'start'; scheduleId: string; startPct: number; days: number } | { action: 'cancel' }
   ) => void;
-  publishOta: (url: string) => void;
+  publishOta: (url: string, sha256: string) => void;
   publishTime: (iso: string) => void;
   isSimulated: boolean;
   setSimulated: (sim: boolean) => void;
+  logout: () => Promise<void>;
 }
 
 const MqttContext = createContext<MqttContextType | null>(null);
 
-const DEFAULT_CONFIG: MqttConfig = {
-  brokerUrl: process.env.NEXT_PUBLIC_HIVEMQ_WSS_URL || 'wss://your-broker.s1.eu.hivemq.cloud:8884/mqtt',
-  username: process.env.NEXT_PUBLIC_HIVEMQ_USER || '',
-  password: process.env.NEXT_PUBLIC_HIVEMQ_PASS || '',
-  deviceId: process.env.NEXT_PUBLIC_DEVICE_ID || 'reef-esp32-01',
-};
-
 export function MqttProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState<MqttConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<MqttConfig>({
+    brokerUrl: '',
+    username: '',
+    password: '',
+    deviceId: 'reef-esp32-01',
+    otaSecretToken: '',
+  });
+
   const [deviceState, setDeviceState] = useState<DeviceState>(defaultInitialState);
   const [isDeviceOnline, setIsDeviceOnline] = useState<boolean>(false);
   const [isBrokerConnected, setIsBrokerConnected] = useState<boolean>(false);
@@ -59,17 +59,22 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
 
   const clientRef = useRef<MqttClient | null>(null);
 
-  // Load config from localStorage if available
+  // Fetch server-isolated credentials upon session establishment
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('reef_mqtt_cfg');
-      if (saved) {
-        try {
-          setConfig(JSON.parse(saved));
-        } catch {
-          // ignore corrupted local config
+    async function loadCredentials() {
+      try {
+        const res = await fetch('/api/auth/credentials');
+        if (res.ok) {
+          const creds = await res.json();
+          setConfig((prev) => ({
+            ...prev,
+            ...creds,
+          }));
         }
+      } catch (e) {
+        console.warn('[MQTT] Failed to fetch server credentials:', e);
       }
+
       const sim = localStorage.getItem('reef_simulated_mode');
       if (sim === 'true') {
         setIsSimulated(true);
@@ -77,13 +82,12 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
         setIsBrokerConnected(true);
       }
     }
+
+    loadCredentials();
   }, []);
 
   const saveConfig = (newCfg: MqttConfig) => {
     setConfig(newCfg);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('reef_mqtt_cfg', JSON.stringify(newCfg));
-    }
   };
 
   const setSimulatedMode = (sim: boolean) => {
@@ -98,11 +102,18 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Connect to MQTT broker via WebSocket Secure (WSS)
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.location.href = '/login';
+    }
+  };
+
+  // Connect to MQTT broker over WebSocket Secure (WSS) using server-provided credentials
   useEffect(() => {
     if (isSimulated) return;
-    if (!config.brokerUrl || config.brokerUrl.includes('your-broker')) {
-      // Incomplete broker configuration, leave offline
+    if (!config.brokerUrl || !config.brokerUrl.startsWith('wss://')) {
       return;
     }
 
@@ -123,7 +134,6 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
 
       client.on('connect', () => {
         setIsBrokerConnected(true);
-        // Subscribe to retained state and status
         client.subscribe([stateTopic, statusTopic], { qos: 1 });
       });
 
@@ -164,14 +174,13 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('[MQTT Connect Exception]', err);
     }
-  }, [config, isSimulated]);
+  }, [config.brokerUrl, config.username, config.password, config.deviceId, isSimulated]);
 
   // Command Publishers
   const publishCmd = useCallback(
     (subTopic: string, payload: object) => {
       const jsonStr = JSON.stringify(payload);
       if (isSimulated) {
-        // Local simulation handler for immediate feedback
         if (subTopic === 'channels') {
           const ch = payload as Channels;
           setDeviceState((prev) => ({
@@ -215,7 +224,19 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       publishCmd('acclimation', p),
     [publishCmd]
   );
-  const publishOta = useCallback((url: string) => publishCmd('ota', { url }), [publishCmd]);
+
+  // Hardened OTA publish: transmits URL, SHA-256, and verified server token
+  const publishOta = useCallback(
+    (url: string, sha256: string) => {
+      publishCmd('ota', {
+        url,
+        token: config.otaSecretToken || '',
+        sha256,
+      });
+    },
+    [publishCmd, config.otaSecretToken]
+  );
+
   const publishTime = useCallback((time: string) => publishCmd('time', { time }), [publishCmd]);
 
   return (
@@ -238,6 +259,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
         publishTime,
         isSimulated,
         setSimulated: setSimulatedMode,
+        logout,
       }}
     >
       {children}

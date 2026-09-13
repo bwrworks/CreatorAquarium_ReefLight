@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useDeviceMqtt } from '../../lib/MqttContext';
-import { useAuth } from '../../lib/AuthContext';
 import {
   Cloud,
   Clock,
@@ -15,8 +14,7 @@ import {
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { config, saveConfig, publishOta, publishTime, isSimulated, setSimulated } = useDeviceMqtt();
-  const { logout } = useAuth();
+  const { config, saveConfig, publishOta, publishTime, isSimulated, setSimulated, logout } = useDeviceMqtt();
 
   const [brokerUrl, setBrokerUrl] = useState(config.brokerUrl);
   const [username, setUsername] = useState(config.username || '');
@@ -28,8 +26,11 @@ export default function SettingsPage() {
   const [overrideTimeoutHours, setOverrideTimeoutHours] = useState(2);
   const [timeSyncSuccess, setTimeSyncSuccess] = useState(false);
 
+  // OTA
   const [otaUrl, setOtaUrl] = useState('');
+  const [otaSha256, setOtaSha256] = useState('');
   const [otaTriggered, setOtaTriggered] = useState(false);
+  const [otaError, setOtaError] = useState('');
 
   const handleSaveBrokerConfig = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,9 +53,21 @@ export default function SettingsPage() {
 
   const handleTriggerOta = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otaUrl.trim()) return;
-    if (confirm(`Initiate Over-The-Air firmware update from:\n${otaUrl}\n\nESP32 will download, flash, and verify boot health.`)) {
-      publishOta(otaUrl);
+    setOtaError('');
+
+    if (!otaUrl.trim().startsWith('https://')) {
+      setOtaError('URL must use secure HTTPS protocol.');
+      return;
+    }
+
+    const cleanSha = otaSha256.trim().toLowerCase();
+    if (cleanSha.length !== 64 || !/^[0-9a-f]{64}$/.test(cleanSha)) {
+      setOtaError('A valid 64-character SHA-256 hex digest is mandatory.');
+      return;
+    }
+
+    if (confirm(`Initiate Over-The-Air firmware update from:\n${otaUrl}\n\nSHA-256: ${cleanSha}\n\nESP32 will download, verify hash, flash, and verify boot health.`)) {
+      publishOta(otaUrl, cleanSha);
       setOtaTriggered(true);
     }
   };
@@ -292,28 +305,64 @@ export default function SettingsPage() {
         </p>
 
         <form onSubmit={handleTriggerOta} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          <input
-            type="url"
-            value={otaUrl}
-            onChange={(e) => setOtaUrl(e.target.value)}
-            placeholder="https://example.com/firmware.bin"
-            style={{
-              width: '100%',
-              background: '#ffffff',
-              color: '#09090b',
-              border: '1px solid #cbd5e1',
-              padding: '0.6rem 0.8rem',
-              borderRadius: '6px',
-              fontSize: '0.82rem',
-            }}
-          />
+          <div>
+            <label style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+              Firmware Binary HTTPS URL
+            </label>
+            <input
+              type="url"
+              value={otaUrl}
+              onChange={(e) => setOtaUrl(e.target.value)}
+              placeholder="https://raw.githubusercontent.com/user/repo/releases/firmware.bin"
+              required
+              style={{
+                width: '100%',
+                background: '#ffffff',
+                color: '#09090b',
+                border: '1px solid #cbd5e1',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '6px',
+                fontSize: '0.82rem',
+              }}
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>
+              Mandatory SHA-256 Checksum (64 hex characters)
+            </label>
+            <input
+              type="text"
+              value={otaSha256}
+              onChange={(e) => setOtaSha256(e.target.value)}
+              placeholder="e.g. e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              required
+              style={{
+                width: '100%',
+                background: '#ffffff',
+                color: '#09090b',
+                border: '1px solid #cbd5e1',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '6px',
+                fontSize: '0.78rem',
+                fontFamily: 'monospace',
+              }}
+            />
+          </div>
+
+          {otaError && (
+            <div style={{ color: '#dc2626', fontSize: '0.76rem', fontWeight: 600 }}>
+              {otaError}
+            </div>
+          )}
+
           <button
             type="submit"
             className="btn-secondary"
             id="trigger-ota-btn"
-            style={{ color: '#0284c7', borderColor: '#bae6fd' }}
+            style={{ color: '#0284c7', borderColor: '#bae6fd', marginTop: '0.3rem' }}
           >
-            {otaTriggered ? 'Update Signal Transmitted...' : 'Initiate OTA Firmware Update'}
+            {otaTriggered ? 'Secure OTA Signal Transmitted...' : 'Initiate Verified OTA Update'}
           </button>
         </form>
       </div>

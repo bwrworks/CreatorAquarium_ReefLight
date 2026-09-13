@@ -32,9 +32,8 @@ void MqttManager::begin(const char* brokerHost, uint16_t port, const char* user,
 
     setupTopics();
 
-    // HiveMQ Cloud uses standard Let's Encrypt / DigiCert root CA.
-    // For broad compatibility in development we set insecure or root CA
-    secureClient.setInsecure();
+    // Pin HiveMQ Cloud ISRG Root X1 CA certificate (SRS NFR-2)
+    secureClient.setCACert(HIVEMQ_ROOT_CA);
 
     mqttClient.setServer(broker.c_str(), brokerPort);
     mqttClient.setBufferSize(2048); // Allow large schedule payloads
@@ -258,10 +257,16 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             publishState();
         }
     } else if (cmd == "ota") {
-        if (!err && doc["url"].is<const char*>()) {
-            String url = doc["url"].as<String>();
-            Serial.printf("[MQTT] OTA update requested from %s\n", url.c_str());
-            otaManager.startOtaUpdate(url);
+        if (!err) {
+            if (!doc["url"].is<const char*>() || !doc["token"].is<const char*>() || !doc["sha256"].is<const char*>()) {
+                Serial.println("[MQTT ERROR] Rejected OTA command: 'url', 'token', and 'sha256' are all mandatory.");
+            } else {
+                String url = doc["url"].as<String>();
+                String token = doc["token"].as<String>();
+                String sha256 = doc["sha256"].as<String>();
+                Serial.printf("[MQTT] Authorized OTA update requested from %s\n", url.c_str());
+                otaManager.startOtaUpdate(url, token, sha256);
+            }
         }
     }
 }

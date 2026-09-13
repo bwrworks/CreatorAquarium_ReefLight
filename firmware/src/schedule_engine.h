@@ -47,6 +47,9 @@ public:
     // Thread-safe state snapshot for MQTT publishing / OLED display
     DeviceStateSnapshot getStateSnapshot(bool wifiConn, bool cloudConn);
 
+    // Number of completed engine ticks (used for local health verification)
+    uint32_t getTickCount() const { return tickCount; }
+
     // Mathematical interpolation function (exposed for unit testing)
     static ChannelValues interpolate(const std::vector<KeyframeData>& keyframes, int currentSecOfDay);
 
@@ -63,6 +66,7 @@ private:
     String currentActiveScheduleId;
 
     unsigned long lastNvsSaveMillis;
+    volatile uint32_t tickCount;
 
     void evaluateSchedule(int secOfDay);
     void resolveTodaySchedule();

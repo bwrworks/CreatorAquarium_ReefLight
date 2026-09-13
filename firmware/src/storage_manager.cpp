@@ -10,7 +10,7 @@ static int parseTimeToSeconds(const char* timeStr) {
     return 0;
 }
 
-StorageManager::StorageManager() {}
+StorageManager::StorageManager() : mounted(false) {}
 
 bool StorageManager::begin() {
     prefs.begin("reef_cfg", false);
@@ -20,9 +20,12 @@ bool StorageManager::begin() {
         LittleFS.format();
         if (!LittleFS.begin(true)) {
             Serial.println("[STORAGE] LittleFS Critical Failure!");
+            mounted = false;
             return false;
         }
     }
+
+    mounted = true;
 
     if (!LittleFS.exists(STORAGE_SCHEDULES_DIR)) {
         LittleFS.mkdir(STORAGE_SCHEDULES_DIR);

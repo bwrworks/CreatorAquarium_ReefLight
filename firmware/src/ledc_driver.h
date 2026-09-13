@@ -21,12 +21,14 @@ public:
     void setFan(float fan);
     void setMasterOn(bool enabled);
     bool isMasterOn() const { return masterOn; }
+    bool isInitialized() const { return initialized; }
 
     // Direct access to current applied values
     ChannelValues getAppliedValues() const;
     ChannelValues getTargetValues() const;
 
 private:
+    bool initialized;
     bool masterOn;
     ChannelValues targetValues;
     ChannelValues appliedValues;
