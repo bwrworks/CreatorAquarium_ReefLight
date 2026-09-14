@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiManager.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "../include/config.h"
 #include "ledc_driver.h"
 #include "rtc_time.h"
@@ -165,6 +167,9 @@ void processSerialCommand(const String& cmd) {
 }
 
 void setup() {
+    // Disable brownout detector to prevent reboot loops on buck converters or noisy external power
+    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
     if (strcmp(OTA_SECRET_TOKEN, "REPLACE_WITH_SECURE_RANDOM_TOKEN_HERE") == 0) {
         Serial.begin(115200);
         Serial.println("FATAL: OTA_SECRET_TOKEN still has the placeholder value in secrets.h — edit it before flashing.");
