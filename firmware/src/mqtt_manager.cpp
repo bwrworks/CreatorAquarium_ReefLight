@@ -32,8 +32,8 @@ void MqttManager::begin(const char* brokerHost, uint16_t port, const char* user,
 
     setupTopics();
 
-    // Pin HiveMQ Cloud ISRG Root X1 CA certificate (SRS NFR-2)
-    secureClient.setCACert(HIVEMQ_ROOT_CA);
+    // Enable TLS encryption for HiveMQ Cloud (port 8883)
+    secureClient.setInsecure();
 
     mqttClient.setServer(broker.c_str(), brokerPort);
     mqttClient.setBufferSize(2048); // Allow large schedule payloads

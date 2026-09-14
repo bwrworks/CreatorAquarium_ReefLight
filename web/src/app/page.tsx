@@ -62,7 +62,12 @@ export default function DashboardPage() {
     publishMode('auto');
   };
 
-  const displayTime = deviceState.time
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const displayTime = mounted && deviceState.time
     ? new Date(deviceState.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     : '--:--:--';
 
@@ -200,7 +205,7 @@ export default function DashboardPage() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
             <Clock size={14} />
-            <span>{displayTime}</span>
+            <span suppressHydrationWarning>{displayTime}</span>
           </div>
         </div>
 
