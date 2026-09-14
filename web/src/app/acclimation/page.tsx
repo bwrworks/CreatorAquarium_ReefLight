@@ -23,9 +23,7 @@ export default function AcclimationPage() {
   };
 
   const handleCancel = () => {
-    if (confirm('Cancel coral acclimation and immediately restore 100% scheduled lighting intensity?')) {
-      publishAcclimation({ action: 'cancel' });
-    }
+    publishAcclimation({ action: 'cancel' });
   };
 
   let elapsedDays = 0;

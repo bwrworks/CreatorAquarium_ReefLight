@@ -93,26 +93,105 @@ export default function ManualPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header Card */}
-      <div className="card-surface" style={{ padding: '1.15rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        className="card-surface"
+        style={{
+          padding: '1.15rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
         <div>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#09090b', letterSpacing: '-0.02em' }}>
-            Manual Fixture Control
-          </h2>
-          <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
-            Direct PWM control • Stays in manual until Resume Auto is clicked
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#09090b', letterSpacing: '-0.02em' }}>
+              Manual Fixture Control
+            </h2>
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '0.2rem 0.55rem',
+                borderRadius: '6px',
+                background: deviceState.mode === 'manual' ? '#fef3c7' : '#e0f2fe',
+                color: deviceState.mode === 'manual' ? '#b45309' : '#0369a1',
+                border: `1px solid ${deviceState.mode === 'manual' ? '#fde68a' : '#bae6fd'}`,
+              }}
+            >
+              {deviceState.mode === 'manual' ? '● Manual Override' : '● Auto Schedule'}
+            </span>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
+            {deviceState.mode === 'manual'
+              ? 'Direct PWM active • Click Resume Auto to restore scheduled lighting'
+              : 'Direct PWM control • Move any slider or select a preset to enter manual mode'}
           </p>
         </div>
-        {deviceState.mode === 'manual' && (
+
+        <button
+          onClick={handleRevertAuto}
+          className="btn-secondary"
+          id="revert-auto-btn"
+          style={{
+            fontSize: '0.78rem',
+            padding: '0.5rem 0.95rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            background: deviceState.mode === 'manual' ? '#0284c7' : '#ffffff',
+            color: deviceState.mode === 'manual' ? '#ffffff' : '#475569',
+            border: deviceState.mode === 'manual' ? '1px solid #0284c7' : '1px solid #cbd5e1',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: deviceState.mode === 'manual' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
+          }}
+        >
+          <RotateCcw size={14} /> Resume Auto Schedule
+        </button>
+      </div>
+
+      {/* Manual Override Status Banner */}
+      {deviceState.mode === 'manual' && (
+        <div
+          className="card-surface"
+          style={{
+            borderColor: '#fde68a',
+            background: '#fffbeb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.8rem 1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+            <RotateCcw size={16} color="#d97706" />
+            <div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e' }}>
+                Manual Override Active
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#b45309' }}>
+                Fixture is holding these slider values. Click Resume Auto to restore daylight schedule.
+              </div>
+            </div>
+          </div>
           <button
             onClick={handleRevertAuto}
             className="btn-secondary"
-            id="revert-auto-btn"
-            style={{ fontSize: '0.76rem', padding: '0.45rem 0.8rem' }}
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.35rem 0.75rem',
+              background: '#0284c7',
+              color: '#ffffff',
+              border: 'none',
+              fontWeight: 700,
+            }}
           >
-            <RotateCcw size={13} /> Resume Auto
+            Resume Auto
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Preset Grid */}
       <div>

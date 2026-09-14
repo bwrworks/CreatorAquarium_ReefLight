@@ -77,6 +77,13 @@ void MqttManager::connectToBroker() {
     Serial.printf("[MQTT] Connecting to HiveMQ Cloud %s:%d as %s...\n",
                   broker.c_str(), brokerPort, devId.c_str());
 
+    IPAddress brokerIp;
+    if (WiFi.hostByName(broker.c_str(), brokerIp)) {
+        mqttClient.setServer(brokerIp, brokerPort);
+    } else {
+        mqttClient.setServer(broker.c_str(), brokerPort);
+    }
+
     // LWT: Status topic with payload "offline", QoS 1, retained = true (TDD §4 & SRS FR-14)
     String clientId = devId + "-" + String(random(1000, 9999));
     bool success = false;
@@ -224,7 +231,14 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         }
     } else if (cmd == "master") {
         if (!err) {
-            bool on = doc["master"] | true;
+            bool on = true;
+            if (doc["master"].is<bool>()) {
+                on = doc["master"].as<bool>();
+            } else if (doc["master"].is<int>()) {
+                on = doc["master"].as<int>() > 0;
+            } else {
+                on = doc["master"] | true;
+            }
             scheduleEngine.setMasterOn(on);
             stateDirty = true;
         }

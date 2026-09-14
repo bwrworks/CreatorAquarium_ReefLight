@@ -183,29 +183,51 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
     }
   }, [config.brokerUrl, config.username, config.password, config.deviceId, isSimulated]);
 
-  // Command Publishers
+  // Command Publishers with instantaneous optimistic state updates
   const publishCmd = useCallback(
     (subTopic: string, payload: object) => {
       const jsonStr = JSON.stringify(payload);
-      if (isSimulated) {
-        if (subTopic === 'channels') {
-          const ch = payload as Channels;
+
+      // 1. Instantaneous optimistic local state update so the UI reacts smoothly & immediately
+      if (subTopic === 'channels') {
+        const ch = payload as Channels;
+        setDeviceState((prev) => ({
+          ...prev,
+          mode: 'manual',
+          live: { ...prev.live, ...ch },
+        }));
+      } else if (subTopic === 'mode') {
+        const m = (payload as { mode: 'auto' | 'manual' }).mode;
+        setDeviceState((prev) => ({
+          ...prev,
+          mode: m,
+          manualOverrideExpiresAt: m === 'auto' ? null : prev.manualOverrideExpiresAt,
+        }));
+      } else if (subTopic === 'fan') {
+        const fn = (payload as { value: number }).value;
+        setDeviceState((prev) => ({ ...prev, live: { ...prev.live, fan: fn } }));
+      } else if (subTopic === 'master') {
+        const m = (payload as { master: boolean }).master;
+        setDeviceState((prev) => ({ ...prev, masterOn: m }));
+      } else if (subTopic === 'acclimation') {
+        const acc = payload as { action: 'start' | 'cancel'; scheduleId?: string; startPct?: number; days?: number };
+        if (acc.action === 'cancel') {
+          setDeviceState((prev) => ({ ...prev, acclimation: null }));
+        } else if (acc.action === 'start') {
           setDeviceState((prev) => ({
             ...prev,
-            mode: 'manual',
-            live: { ...prev.live, ...ch },
-            manualOverrideExpiresAt: new Date(Date.now() + 7200000).toISOString(),
+            acclimation: {
+              active: true,
+              scheduleId: acc.scheduleId || 'natural_reef',
+              startPct: acc.startPct || 50,
+              daysTotal: acc.days || 14,
+              startedAt: new Date().toISOString(),
+            },
           }));
-        } else if (subTopic === 'mode') {
-          const m = (payload as { mode: 'auto' | 'manual' }).mode;
-          setDeviceState((prev) => ({ ...prev, mode: m }));
-        } else if (subTopic === 'fan') {
-          const fn = (payload as { value: number }).value;
-          setDeviceState((prev) => ({ ...prev, live: { ...prev.live, fan: fn } }));
-        } else if (subTopic === 'master') {
-          const m = (payload as { master: boolean }).master;
-          setDeviceState((prev) => ({ ...prev, masterOn: m }));
         }
+      }
+
+      if (isSimulated) {
         return;
       }
 

@@ -52,6 +52,10 @@ void setupWiFi() {
         Serial.println();
         if (WiFi.status() == WL_CONNECTED) {
             Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+            IPAddress dns1(8, 8, 8, 8);
+            IPAddress dns2(1, 1, 1, 1);
+            WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), dns1, dns2);
+            Serial.println("[WIFI] Primary DNS set to 8.8.8.8, secondary 1.1.1.1");
             return;
         }
         Serial.println("[WIFI] Direct connection failed. Falling back to setup portal...");
@@ -76,6 +80,9 @@ void setupWiFi() {
 
     if (connected) {
         Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+        IPAddress dns1(8, 8, 8, 8);
+        IPAddress dns2(1, 1, 1, 1);
+        WiFi.config(WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), dns1, dns2);
         if (strlen(customMqttHost.getValue()) > 0) strncpy(hivemqHost, customMqttHost.getValue(), sizeof(hivemqHost));
         if (strlen(customMqttUser.getValue()) > 0) strncpy(hivemqUser, customMqttUser.getValue(), sizeof(hivemqUser));
         if (strlen(customMqttPass.getValue()) > 0) strncpy(hivemqPass, customMqttPass.getValue(), sizeof(hivemqPass));
