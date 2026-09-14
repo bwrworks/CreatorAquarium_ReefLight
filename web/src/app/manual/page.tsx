@@ -30,6 +30,7 @@ export default function ManualPage() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const isInteractingRef = React.useRef<boolean>(false);
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const idleTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const prevModeRef = React.useRef(deviceState.mode);
 
   // Sync from device only when not actively interacting or when mode reverts to auto
@@ -55,7 +56,12 @@ export default function ManualPage() {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
       publishChannels(updated);
-    }, 40);
+    }, 50);
+
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 1200);
   };
 
   const handleFanChange = (value: number) => {
@@ -71,10 +77,16 @@ export default function ManualPage() {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     publishChannels(presetChannels);
     publishFan(fan);
+
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 1200);
   };
 
   const handleRevertAuto = () => {
     isInteractingRef.current = false;
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     publishMode('auto');
   };
 

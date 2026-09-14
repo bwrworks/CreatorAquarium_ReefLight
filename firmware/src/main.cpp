@@ -36,13 +36,16 @@ char hivemqPass[32] = "LQ#9OVUSZ1S";
 char deviceId[32]   = DEFAULT_DEVICE_ID;
 
 void setupWiFi() {
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
+
 #if defined(DEFAULT_WIFI_SSID) && defined(DEFAULT_WIFI_PASS)
     if (strlen(DEFAULT_WIFI_SSID) > 0) {
         Serial.printf("[BOOT] Attempting direct connection to predefined WiFi '%s'...\n", DEFAULT_WIFI_SSID);
         WiFi.mode(WIFI_STA);
         WiFi.begin(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASS);
         unsigned long startMs = millis();
-        while (WiFi.status() != WL_CONNECTED && millis() - startMs < 12000) {
+        while (WiFi.status() != WL_CONNECTED && millis() - startMs < 20000) {
             delay(500);
             Serial.print(".");
         }
@@ -56,7 +59,7 @@ void setupWiFi() {
 #endif
 
     WiFiManager wm;
-    wm.setConfigPortalTimeout(180); // 3 minutes timeout if no one configures
+    wm.setConfigPortalTimeout(60); // 1 minute timeout if no one configures
 
     WiFiManagerParameter customMqttHost("host", "HiveMQ Host", hivemqHost, 64);
     WiFiManagerParameter customMqttUser("user", "MQTT Username", hivemqUser, 32);
@@ -177,10 +180,26 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(500);
+    delay(300);
     Serial.println("\n==================================================");
     Serial.println("   REEF AQUARIUM LED CONTROLLER v" FIRMWARE_VERSION);
     Serial.println("==================================================");
+
+    // 0. Hold active-low LED driver pins HIGH immediately to prevent current surge on power-on
+    pinMode(PIN_LED_BLUE, OUTPUT);
+    digitalWrite(PIN_LED_BLUE, HIGH);
+    pinMode(PIN_LED_RED, OUTPUT);
+    digitalWrite(PIN_LED_RED, HIGH);
+    pinMode(PIN_LED_WHITE, OUTPUT);
+    digitalWrite(PIN_LED_WHITE, HIGH);
+    pinMode(PIN_LED_UV, OUTPUT);
+    digitalWrite(PIN_LED_UV, HIGH);
+    pinMode(PIN_FAN_PWM, OUTPUT);
+    digitalWrite(PIN_FAN_PWM, LOW);
+
+    // Initialize I2C bus once with timeout
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+    Wire.setTimeOut(50);
 
     // 1. Initialize LEDC hardware outputs (Blue: 18, Red: 19, White: 32, UV: 33, Fan: 4)
     ledcDriver.begin();
@@ -215,6 +234,15 @@ void setup() {
 void loop() {
     // Check and confirm local health for OTA partition validity (SRS NFR-1)
     otaManager.checkAndConfirmLocalHealth();
+
+    // Auto-reconnect WiFi if connection drops
+    if (WiFi.status() != WL_CONNECTED) {
+        static unsigned long lastWifiRetry = 0;
+        if (millis() - lastWifiRetry > 5000) {
+            lastWifiRetry = millis();
+            WiFi.reconnect();
+        }
+    }
 
     // Background RTC drift maintenance
     rtcManager.loop();

@@ -5,7 +5,7 @@ import paho.mqtt.client as mqtt
 
 OTA_URL = "https://raw.githubusercontent.com/bwrworks/CreatorAquarium_ReefLight/main/firmware/releases/firmware.bin"
 OTA_TOKEN = "rf_ota_9f83a27c4d1e8b6503f"
-OTA_SHA256 = "b3bf64a1203ab41eef78b336c2bd2024e52142d525cf06f84a990c514bc408ab"
+OTA_SHA256 = "b05886a349b8ffbc961dc5f405c48fa79bea9e49be21fa88b8a419d8da3d91ee"
 
 def on_connect(c, u, f, rc, p=None):
     print("[MQTT Connected] Subscribing to device feedback...", flush=True)

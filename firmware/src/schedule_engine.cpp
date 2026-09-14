@@ -52,9 +52,11 @@ void ScheduleEngine::taskFunction(void* param) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
-        // Smooth hardware ramping towards target values (soft-start / power-recovery)
+        // Smooth hardware ramping in auto mode; direct immediate control in manual mode
         if (xSemaphoreTake(engine->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            ledcDriver.updateSlew(0.5f); // 0.5% per 100ms = 5% per second
+            if (engine->currentMode != "manual") {
+                ledcDriver.updateSlew(2.0f); // 2.0% per 100ms in auto mode
+            }
             xSemaphoreGive(engine->mutex);
         }
 

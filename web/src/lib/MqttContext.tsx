@@ -215,7 +215,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       }
 
       const topic = `reef/${config.deviceId}/cmd/${subTopic}`;
-      clientRef.current.publish(topic, jsonStr, { qos: 1 });
+      clientRef.current.publish(topic, jsonStr, { qos: 0 });
     },
     [config.deviceId, isSimulated]
   );

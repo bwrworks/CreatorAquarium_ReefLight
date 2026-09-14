@@ -34,7 +34,7 @@ void MqttManager::begin(const char* brokerHost, uint16_t port, const char* user,
 
     // Enable TLS encryption for HiveMQ Cloud (port 8883)
     secureClient.setInsecure();
-    secureClient.setTimeout(10);
+    secureClient.setTimeout(10000); // 10000ms = 10s socket timeout
 
     mqttClient.setServer(broker.c_str(), brokerPort);
     mqttClient.setBufferSize(2048); // Allow large schedule payloads
@@ -208,25 +208,25 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             float r = doc["red"] | 0.0f;
             float uv = doc["uv"] | 0.0f;
             scheduleEngine.setManualChannels(b, w, r, uv);
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "mode") {
         if (!err) {
             String mode = doc["mode"] | "auto";
             scheduleEngine.setMode(mode);
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "fan") {
         if (!err) {
             float val = doc["value"] | 40.0f;
             scheduleEngine.setFan(val);
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "master") {
         if (!err) {
             bool on = doc["master"] | true;
             scheduleEngine.setMasterOn(on);
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "schedule") {
         if (!err) {
@@ -238,13 +238,13 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
                 storageManager.saveSchedule(String(payloadStr));
             }
             scheduleEngine.reloadConfig();
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "weekly") {
         if (!err) {
             storageManager.saveWeeklyAssignment(String(payloadStr));
             scheduleEngine.reloadConfig();
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "acclimation") {
         if (!err) {
@@ -257,14 +257,14 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             } else if (action == "cancel") {
                 scheduleEngine.cancelAcclimation();
             }
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "time") {
         // Fallback direct time push from mobile app
         if (!err && doc["time"].is<const char*>()) {
             String timeIso = doc["time"].as<String>();
             rtcManager.setTimeFromISO(timeIso);
-            publishState();
+            stateDirty = true;
         }
     } else if (cmd == "ota") {
         if (!err) {

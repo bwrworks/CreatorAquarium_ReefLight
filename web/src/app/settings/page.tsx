@@ -315,12 +315,12 @@ export default function SettingsPage() {
             type="button"
             onClick={() => {
               setOtaUrl('https://raw.githubusercontent.com/bwrworks/CreatorAquarium_ReefLight/main/firmware/releases/firmware.bin');
-              setOtaSha256('b3bf64a1203ab41eef78b336c2bd2024e52142d525cf06f84a990c514bc408ab');
+              setOtaSha256('b05886a349b8ffbc961dc5f405c48fa79bea9e49be21fa88b8a419d8da3d91ee');
             }}
             className="btn-secondary"
             style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem' }}
           >
-            Fill v1.2.0 Release
+            Fill v1.2.1 Release
           </button>
         </div>
 
