@@ -78,7 +78,7 @@ void ScheduleEngine::tick() {
 
     // Check if manual override expired
     if (currentMode == "manual") {
-        if (manualOverrideUntilEpoch > 0 && nowEpoch >= manualOverrideUntilEpoch) {
+        if (manualOverrideUntilEpoch > 0 && rtcManager.isTimeConfirmed() && nowEpoch >= manualOverrideUntilEpoch) {
             Serial.println("[ENGINE] Manual override timeout reached. Returning to Auto mode.");
             currentMode = "auto";
             manualOverrideUntilEpoch = 0;

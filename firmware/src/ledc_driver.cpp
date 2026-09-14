@@ -48,14 +48,17 @@ void LedcDriver::setChannels(float blue, float white, float red, float uv) {
     targetValues.white = constrain(white, 0.0f, 100.0f);
     targetValues.red   = constrain(red, 0.0f, 100.0f);
     targetValues.uv    = constrain(uv, 0.0f, 100.0f);
+    applyOutputs();
 }
 
 void LedcDriver::setFan(float fan) {
     targetValues.fan = constrain(fan, 0.0f, 100.0f);
+    applyOutputs();
 }
 
 void LedcDriver::setMasterOn(bool enabled) {
     masterOn = enabled;
+    applyOutputs();
 }
 
 void LedcDriver::updateSlew(float maxDeltaPercent) {
