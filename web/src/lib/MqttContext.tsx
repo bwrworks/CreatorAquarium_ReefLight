@@ -61,6 +61,10 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch server-isolated credentials upon session establishment
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/login')) {
+      return;
+    }
+
     async function loadCredentials() {
       try {
         const res = await fetch('/api/auth/credentials');
@@ -71,8 +75,9 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
             ...creds,
           }));
         } else if (res.status === 401) {
-          console.warn('[MQTT] Session expired or invalid, redirecting to login...');
-          window.location.href = '/login';
+          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
+          }
           return;
         }
       } catch (e) {
