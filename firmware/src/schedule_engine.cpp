@@ -46,11 +46,23 @@ void ScheduleEngine::begin() {
 void ScheduleEngine::taskFunction(void* param) {
     ScheduleEngine* engine = (ScheduleEngine*)param;
     TickType_t xLastWakeTime = xTaskGetTickCount();
-    const TickType_t xFrequency = pdMS_TO_TICKS(1000); // 1000ms = 1s
+    const TickType_t xFrequency = pdMS_TO_TICKS(100); // 100ms = 10Hz smooth slew
+    uint8_t subTick = 0;
 
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
-        engine->tick();
+
+        // Smooth hardware ramping towards target values (soft-start / power-recovery)
+        if (xSemaphoreTake(engine->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+            ledcDriver.updateSlew(0.5f); // 0.5% per 100ms = 5% per second
+            xSemaphoreGive(engine->mutex);
+        }
+
+        subTick++;
+        if (subTick >= 10) {
+            subTick = 0;
+            engine->tick();
+        }
     }
 }
 

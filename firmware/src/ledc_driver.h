@@ -27,6 +27,9 @@ public:
     ChannelValues getAppliedValues() const;
     ChannelValues getTargetValues() const;
 
+    // Smooth soft-start / ramp slew rate update (0% to target on power-on / wake)
+    void updateSlew(float maxDeltaPercent = 0.5f);
+
 private:
     bool initialized;
     bool masterOn;

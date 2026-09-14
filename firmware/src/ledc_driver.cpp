@@ -48,17 +48,39 @@ void LedcDriver::setChannels(float blue, float white, float red, float uv) {
     targetValues.white = constrain(white, 0.0f, 100.0f);
     targetValues.red   = constrain(red, 0.0f, 100.0f);
     targetValues.uv    = constrain(uv, 0.0f, 100.0f);
-    applyOutputs();
 }
 
 void LedcDriver::setFan(float fan) {
     targetValues.fan = constrain(fan, 0.0f, 100.0f);
-    applyOutputs();
 }
 
 void LedcDriver::setMasterOn(bool enabled) {
     masterOn = enabled;
-    applyOutputs();
+}
+
+void LedcDriver::updateSlew(float maxDeltaPercent) {
+    if (!initialized) return;
+
+    auto stepValue = [maxDeltaPercent](float current, float target) -> float {
+        if (fabs(current - target) <= maxDeltaPercent) {
+            return target;
+        }
+        return (current < target) ? (current + maxDeltaPercent) : (current - maxDeltaPercent);
+    };
+
+    ChannelValues effectiveTarget = masterOn ? targetValues : ChannelValues{0.0f, 0.0f, 0.0f, 0.0f, targetValues.fan};
+
+    appliedValues.blue  = stepValue(appliedValues.blue,  effectiveTarget.blue);
+    appliedValues.white = stepValue(appliedValues.white, effectiveTarget.white);
+    appliedValues.red   = stepValue(appliedValues.red,   effectiveTarget.red);
+    appliedValues.uv    = stepValue(appliedValues.uv,    effectiveTarget.uv);
+    appliedValues.fan   = stepValue(appliedValues.fan,   effectiveTarget.fan);
+
+    ledcWrite(LEDC_CHANNEL_BLUE,  pctToLedDuty(appliedValues.blue));
+    ledcWrite(LEDC_CHANNEL_RED,   pctToLedDuty(appliedValues.red));
+    ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(appliedValues.white));
+    ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(appliedValues.uv));
+    ledcWrite(LEDC_CHANNEL_FAN,   pctToFanDuty(appliedValues.fan));
 }
 
 void LedcDriver::applyOutputs() {
