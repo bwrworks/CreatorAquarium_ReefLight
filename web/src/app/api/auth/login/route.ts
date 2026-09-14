@@ -6,9 +6,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { passcode } = body;
 
-    const expectedPasscode = process.env.APP_PASSCODE || 'reef_prod_passcode_change_me';
+    const cleanPasscode = typeof passcode === 'string' ? passcode.trim() : '';
+    const cleanExpected = (process.env.APP_PASSCODE || 'reef_prod_passcode_change_me').trim();
 
-    if (!passcode || typeof passcode !== 'string' || passcode !== expectedPasscode) {
+    if (!cleanPasscode || cleanPasscode !== cleanExpected) {
       // Artificial delay to prevent brute-force timing attacks
       await new Promise((resolve) => setTimeout(resolve, 300));
       return NextResponse.json({ error: 'Invalid passcode' }, { status: 401 });
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
     });
 
     return response;
-  } catch {
+  } catch (err) {
+    console.error('[AUTH ERROR IN LOGIN ROUTE]:', err);
     return NextResponse.json({ error: 'Authentication error' }, { status: 500 });
   }
 }
