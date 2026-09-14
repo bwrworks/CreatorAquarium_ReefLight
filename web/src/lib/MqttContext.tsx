@@ -10,7 +10,7 @@ const defaultInitialState: DeviceState = {
   manualOverrideExpiresAt: null,
   activeScheduleId: 'natural_reef',
   acclimation: null,
-  time: new Date().toISOString(),
+  time: '',
   wifiConnected: true,
   cloudConnected: true,
   firmwareVersion: '1.1.0',
@@ -75,9 +75,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
             ...creds,
           }));
         } else if (res.status === 401) {
-          if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-            window.location.href = '/login';
-          }
+          console.warn('[MQTT] Session not authenticated. Credentials deferred.');
           return;
         }
       } catch (e) {

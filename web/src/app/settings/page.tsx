@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDeviceMqtt } from '../../lib/MqttContext';
 import {
   Cloud,
@@ -21,6 +21,13 @@ export default function SettingsPage() {
   const [password, setPassword] = useState(config.password || '');
   const [deviceId, setDeviceId] = useState(config.deviceId);
   const [configSaved, setConfigSaved] = useState(false);
+
+  useEffect(() => {
+    if (config.brokerUrl) setBrokerUrl(config.brokerUrl);
+    if (config.username) setUsername(config.username);
+    if (config.password) setPassword(config.password);
+    if (config.deviceId) setDeviceId(config.deviceId);
+  }, [config.brokerUrl, config.username, config.password, config.deviceId]);
 
   const [timezone, setTimezone] = useState('Asia/Kolkata (UTC+05:30)');
   const [overrideTimeoutHours, setOverrideTimeoutHours] = useState(2);
