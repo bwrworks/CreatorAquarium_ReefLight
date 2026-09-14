@@ -284,8 +284,8 @@ void ScheduleEngine::setMode(const String& mode) {
 void ScheduleEngine::setManualChannels(float b, float w, float r, float uv) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         currentMode = "manual";
-        int timeoutSec = storageManager.getOverrideTimeout();
-        manualOverrideUntilEpoch = rtcManager.getEpoch() + timeoutSec;
+        // Manual control stays active until user explicitly presses "Resume Auto"
+        manualOverrideUntilEpoch = 0;
         manualValues.blue  = b;
         manualValues.white = w;
         manualValues.red   = r;

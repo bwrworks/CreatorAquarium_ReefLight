@@ -87,7 +87,7 @@ export default function ManualPage() {
             Manual Fixture Control
           </h2>
           <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
-            Direct PWM control • Reverts to auto after timeout
+            Direct PWM control • Stays in manual until Resume Auto is clicked
           </p>
         </div>
         {deviceState.mode === 'manual' && (

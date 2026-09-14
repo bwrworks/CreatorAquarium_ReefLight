@@ -307,9 +307,22 @@ export default function SettingsPage() {
             Over-The-Air Firmware Update (FR-20)
           </h3>
         </div>
-        <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.75rem' }}>
-          Dual-partition safe updates with automated rollback if health check fails
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+          <p style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            Dual-partition safe updates with automated rollback if health check fails
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setOtaUrl('https://raw.githubusercontent.com/bwrworks/CreatorAquarium_ReefLight/main/firmware/releases/firmware.bin');
+              setOtaSha256('b3bf64a1203ab41eef78b336c2bd2024e52142d525cf06f84a990c514bc408ab');
+            }}
+            className="btn-secondary"
+            style={{ fontSize: '0.72rem', padding: '0.3rem 0.6rem' }}
+          >
+            Fill v1.2.0 Release
+          </button>
+        </div>
 
         <form onSubmit={handleTriggerOta} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           <div>

@@ -32,9 +32,16 @@ void LedcDriver::begin() {
 }
 
 uint32_t LedcDriver::pctToLedDuty(float pct) {
+#if defined(LEDC_PWM_INVERTED) && LEDC_PWM_INVERTED
+    if (pct <= 0.0f) return LEDC_LED_MAX_DUTY;
+    if (pct >= 100.0f) return 0;
+    float inv = 100.0f - pct;
+    return (uint32_t)((inv / 100.0f) * (float)LEDC_LED_MAX_DUTY + 0.5f);
+#else
     if (pct <= 0.0f) return 0;
     if (pct >= 100.0f) return LEDC_LED_MAX_DUTY;
     return (uint32_t)((pct / 100.0f) * (float)LEDC_LED_MAX_DUTY + 0.5f);
+#endif
 }
 
 uint32_t LedcDriver::pctToFanDuty(float pct) {
@@ -88,10 +95,17 @@ void LedcDriver::updateSlew(float maxDeltaPercent) {
 
 void LedcDriver::applyOutputs() {
     if (!masterOn) {
+#if defined(LEDC_PWM_INVERTED) && LEDC_PWM_INVERTED
+        ledcWrite(LEDC_CHANNEL_BLUE,  LEDC_LED_MAX_DUTY);
+        ledcWrite(LEDC_CHANNEL_RED,   LEDC_LED_MAX_DUTY);
+        ledcWrite(LEDC_CHANNEL_WHITE, LEDC_LED_MAX_DUTY);
+        ledcWrite(LEDC_CHANNEL_UV,    LEDC_LED_MAX_DUTY);
+#else
         ledcWrite(LEDC_CHANNEL_BLUE,  0);
         ledcWrite(LEDC_CHANNEL_RED,   0);
         ledcWrite(LEDC_CHANNEL_WHITE, 0);
         ledcWrite(LEDC_CHANNEL_UV,    0);
+#endif
         appliedValues.blue = 0.0f;
         appliedValues.red = 0.0f;
         appliedValues.white = 0.0f;

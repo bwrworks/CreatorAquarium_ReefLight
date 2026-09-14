@@ -63,10 +63,14 @@
 #define DEFAULT_TIMEZONE_OFFSET_SEC (5 * 3600 + 30 * 60) // UTC+5:30
 #define DEFAULT_OVERRIDE_TIMEOUT_SEC 7200                // 2 hours
 
+// PWM Polarity: active-low LED drivers (e.g. optocouplers, inverted DIM, pull-up stages)
+// When true: 0% brightness = LEDC_LED_MAX_DUTY (OFF), 100% brightness = 0 (FULL ON)
+#define LEDC_PWM_INVERTED      true
+
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.1.0"
+#define FIRMWARE_VERSION       "1.2.0"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"
