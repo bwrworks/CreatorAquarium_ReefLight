@@ -28,22 +28,34 @@ export default function ManualPage() {
 
   const [fanSpeed, setFanSpeed] = useState<number>(deviceState.live.fan || 40);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  const isInteractingRef = React.useRef<boolean>(false);
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const prevModeRef = React.useRef(deviceState.mode);
 
+  // Sync from device only when not actively interacting or when mode reverts to auto
   useEffect(() => {
-    setChannels({
-      blue: deviceState.live.blue,
-      white: deviceState.live.white,
-      red: deviceState.live.red,
-      uv: deviceState.live.uv,
-    });
-    setFanSpeed(deviceState.live.fan);
-  }, [deviceState.live]);
+    if (!isInteractingRef.current || (prevModeRef.current === 'manual' && deviceState.mode === 'auto')) {
+      setChannels({
+        blue: deviceState.live.blue,
+        white: deviceState.live.white,
+        red: deviceState.live.red,
+        uv: deviceState.live.uv,
+      });
+      setFanSpeed(deviceState.live.fan);
+    }
+    prevModeRef.current = deviceState.mode;
+  }, [deviceState.live, deviceState.mode]);
 
   const handleSliderChange = (channelKey: keyof Channels, value: number) => {
+    isInteractingRef.current = true;
     const updated = { ...channels, [channelKey]: value };
     setChannels(updated);
     setActivePreset(null);
-    publishChannels(updated);
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      publishChannels(updated);
+    }, 40);
   };
 
   const handleFanChange = (value: number) => {
@@ -52,14 +64,17 @@ export default function ManualPage() {
   };
 
   const applyPreset = (name: string, presetChannels: Channels, fan: number) => {
+    isInteractingRef.current = true;
     setActivePreset(name);
     setChannels(presetChannels);
     setFanSpeed(fan);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     publishChannels(presetChannels);
     publishFan(fan);
   };
 
   const handleRevertAuto = () => {
+    isInteractingRef.current = false;
     publishMode('auto');
   };
 
