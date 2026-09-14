@@ -18,6 +18,25 @@ char hivemqPass[32] = "reef_pass";
 char deviceId[32]   = DEFAULT_DEVICE_ID;
 
 void setupWiFi() {
+#if defined(DEFAULT_WIFI_SSID) && defined(DEFAULT_WIFI_PASS)
+    if (strlen(DEFAULT_WIFI_SSID) > 0) {
+        Serial.printf("[BOOT] Attempting direct connection to predefined WiFi '%s'...\n", DEFAULT_WIFI_SSID);
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(DEFAULT_WIFI_SSID, DEFAULT_WIFI_PASS);
+        unsigned long startMs = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startMs < 12000) {
+            delay(500);
+            Serial.print(".");
+        }
+        Serial.println();
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.printf("[WIFI] Connected! IP: %s\n", WiFi.localIP().toString().c_str());
+            return;
+        }
+        Serial.println("[WIFI] Direct connection failed. Falling back to setup portal...");
+    }
+#endif
+
     WiFiManager wm;
     wm.setConfigPortalTimeout(180); // 3 minutes timeout if no one configures
 

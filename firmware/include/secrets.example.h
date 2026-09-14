@@ -11,3 +11,7 @@
 #define DEFAULT_MQTT_HOST         "your-broker-id.s1.eu.hivemq.cloud"
 #define DEFAULT_MQTT_USER         "your_mqtt_username"
 #define DEFAULT_MQTT_PASS         "your_mqtt_password"
+
+// Optional: Predefine home WiFi to connect instantly on boot (skipping captive portal)
+// #define DEFAULT_WIFI_SSID         "My_Home_WiFi"
+// #define DEFAULT_WIFI_PASS         "My_WiFi_Password"
