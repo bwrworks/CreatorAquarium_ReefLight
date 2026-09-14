@@ -70,6 +70,10 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
             ...prev,
             ...creds,
           }));
+        } else if (res.status === 401) {
+          console.warn('[MQTT] Session expired or invalid, redirecting to login...');
+          window.location.href = '/login';
+          return;
         }
       } catch (e) {
         console.warn('[MQTT] Failed to fetch server credentials:', e);
