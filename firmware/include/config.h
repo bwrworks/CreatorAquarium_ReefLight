@@ -20,10 +20,10 @@
 // =========================================================================
 // Hardware Pinout Baseline (SRS §3)
 // =========================================================================
-#define PIN_LED_BLUE     32  // 6 LEDs, Blue channel
-#define PIN_LED_RED      33  // 2 LEDs, Red channel
-#define PIN_LED_WHITE    18  // 4 LEDs, White channel
-#define PIN_LED_UV       19  // 2 LEDs, UV channel
+#define PIN_LED_BLUE     18  // Blue channel
+#define PIN_LED_RED      19  // Red channel
+#define PIN_LED_WHITE    32  // White channel
+#define PIN_LED_UV       33  // UV channel
 #define PIN_FAN_PWM       4  // 1 Electronics cooling fan
 
 #define PIN_I2C_SDA      21  // Shared I2C SDA for DS3231 RTC & SSD1306 OLED

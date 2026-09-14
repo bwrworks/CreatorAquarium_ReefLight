@@ -142,7 +142,7 @@ void setup() {
     Serial.println("   REEF AQUARIUM LED CONTROLLER v" FIRMWARE_VERSION);
     Serial.println("==================================================");
 
-    // 1. Initialize LEDC hardware outputs (pins 32, 33, 18, 19, 4)
+    // 1. Initialize LEDC hardware outputs (Blue: 18, Red: 19, White: 32, UV: 33, Fan: 4)
     ledcDriver.begin();
 
     // 2. Initialize I2C: OLED display and DS3231 RTC
