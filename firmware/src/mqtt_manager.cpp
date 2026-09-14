@@ -34,9 +34,12 @@ void MqttManager::begin(const char* brokerHost, uint16_t port, const char* user,
 
     // Enable TLS encryption for HiveMQ Cloud (port 8883)
     secureClient.setInsecure();
+    secureClient.setTimeout(10);
 
     mqttClient.setServer(broker.c_str(), brokerPort);
     mqttClient.setBufferSize(2048); // Allow large schedule payloads
+    mqttClient.setKeepAlive(30);
+    mqttClient.setSocketTimeout(15);
     mqttClient.setCallback([this](char* topic, byte* payload, unsigned int length) {
         this->handleIncomingMessage(topic, payload, length);
     });
@@ -67,6 +70,9 @@ bool MqttManager::isConnected() {
 
 void MqttManager::connectToBroker() {
     if (WiFi.status() != WL_CONNECTED || broker.length() == 0) return;
+
+    // Terminate any stale socket before re-negotiating TLS session
+    secureClient.stop();
 
     Serial.printf("[MQTT] Connecting to HiveMQ Cloud %s:%d as %s...\n",
                   broker.c_str(), brokerPort, devId.c_str());
@@ -100,6 +106,7 @@ void MqttManager::connectToBroker() {
     } else {
         Serial.printf("[MQTT] Connect failed, rc=%d. Retrying in %lu ms\n",
                       mqttClient.state(), reconnectInterval);
+        secureClient.stop();
         reconnectInterval = min(reconnectInterval * 2, 60000UL); // Exponential backoff max 60s
     }
 }
@@ -119,8 +126,8 @@ void MqttManager::loop() {
         mqttClient.loop();
 
         unsigned long now = millis();
-        // Periodic heartbeat publish every 30 seconds, or on demand if state changed
-        if (stateDirty || (now - lastHeartbeatMillis >= 30000UL)) {
+        // Periodic heartbeat publish every 15 seconds, or on demand if state changed
+        if (stateDirty || (now - lastHeartbeatMillis >= 15000UL)) {
             lastHeartbeatMillis = now;
             stateDirty = false;
             publishState();
@@ -130,6 +137,9 @@ void MqttManager::loop() {
 
 void MqttManager::publishState() {
     if (!mqttClient.connected()) return;
+
+    // Re-assert online status alongside state
+    mqttClient.publish(topicStatus.c_str(), "online", true);
 
     DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(WiFi.status() == WL_CONNECTED, true);
 
