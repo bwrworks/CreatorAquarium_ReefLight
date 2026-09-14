@@ -8,7 +8,7 @@
 
 // ISRG Root X1 CA (Let's Encrypt Root Certificate)
 // Used by HiveMQ Cloud Serverless brokers
-static const char HIVEMQ_ROOT_CA[] PROGMEM = 
+static const char HIVEMQ_ROOT_CA[] = 
 "-----BEGIN CERTIFICATE-----\n"
 "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n"
 "TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n"
@@ -43,7 +43,7 @@ static const char HIVEMQ_ROOT_CA[] PROGMEM =
 
 // DigiCert Global Root CA
 // Standard root for GitHub releases and raw assets HTTPS downloads
-static const char DIGICERT_GLOBAL_ROOT_CA[] PROGMEM =
+static const char DIGICERT_GLOBAL_ROOT_CA[] =
 "-----BEGIN CERTIFICATE-----\n"
 "MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n"
 "MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n"

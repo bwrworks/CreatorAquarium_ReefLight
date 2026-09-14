@@ -10,11 +10,27 @@
 #include "oled_display.h"
 #include "ota_manager.h"
 
-// Default or NVS-configurable broker credentials
-char hivemqHost[64] = "your-broker-id.s1.eu.hivemq.cloud";
+// Default broker credentials from secrets.h
+#ifdef DEFAULT_MQTT_HOST
+char hivemqHost[64] = DEFAULT_MQTT_HOST;
+#else
+char hivemqHost[64] = "c7e756c95d22406988e67a7e6caabb02.s1.eu.hivemq.cloud";
+#endif
+
 char hivemqPort[6]  = "8883";
-char hivemqUser[32] = "reef_user";
-char hivemqPass[32] = "reef_pass";
+
+#ifdef DEFAULT_MQTT_USER
+char hivemqUser[32] = DEFAULT_MQTT_USER;
+#else
+char hivemqUser[32] = "Reef_light";
+#endif
+
+#ifdef DEFAULT_MQTT_PASS
+char hivemqPass[32] = DEFAULT_MQTT_PASS;
+#else
+char hivemqPass[32] = "LQ#9OVUSZ1S";
+#endif
+
 char deviceId[32]   = DEFAULT_DEVICE_ID;
 
 void setupWiFi() {
