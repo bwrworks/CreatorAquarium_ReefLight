@@ -45,7 +45,7 @@ void MqttManager::begin(const char* brokerHost, uint16_t port, const char* user,
     xTaskCreatePinnedToCore(
         MqttManager::taskFunction,
         "MqttTask",
-        6144,
+        10240, // 10KB stack required for mbedTLS TLS negotiation
         this,
         1, // Priority 1
         NULL,
