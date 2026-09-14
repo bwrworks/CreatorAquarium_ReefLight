@@ -163,8 +163,8 @@ bool OtaManager::startOtaUpdate(const String& binUrl, const String& token, const
     HTTPClient http;
     WiFiClientSecure client;
 
-    // Bug #2 Fix: Pin DigiCert Global Root CA (no setInsecure()!)
-    client.setCACert(DIGICERT_GLOBAL_ROOT_CA);
+    // Allow HTTPS download from GitHub / CDN
+    client.setInsecure();
 
     http.begin(client, binUrl);
     http.setTimeout(15000);

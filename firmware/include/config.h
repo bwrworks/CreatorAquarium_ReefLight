@@ -64,7 +64,7 @@
 #define DEFAULT_OVERRIDE_TIMEOUT_SEC 7200                // 2 hours
 
 // Allowed OTA domain list (comma-separated, lowercased)
-#define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io"
+#define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
 #define FIRMWARE_VERSION       "1.1.0"
 
