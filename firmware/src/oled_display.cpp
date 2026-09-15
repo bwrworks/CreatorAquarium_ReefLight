@@ -6,6 +6,22 @@
 
 OledDisplayManager oledDisplay;
 
+// =========================================================================
+// Creators Aquarium Color Palette (RGB565 High-Contrast Dark Theme)
+// =========================================================================
+#define C_BG            0x0000 // Deep Black
+#define C_CARD_BORDER   0x1A4F // Slate Cyan Card Border (RGB: 26, 73, 120)
+#define C_SLOT_BG       0x18C6 // Recessed Slider Slot (RGB: 24, 24, 48)
+#define C_CYAN          0x07FF // Glowing Cyan
+#define C_BLUE          0x2BDF // Coral Sky Blue
+#define C_WHITE         0xFFFF // Crisp White
+#define C_RED           0xFA08 // Coral Neon Red
+#define C_UV            0xC81F // Actinic Violet
+#define C_GREEN         0x07E0 // Emerald Green
+#define C_PURPLE        0x981F // Deep Purple / Magenta (for MQTT pill)
+#define C_ORANGE        0xFD20 // Warm Amber
+#define C_DIM_GRAY      0x632C // Dim Gray
+
 OledDisplayManager::OledDisplayManager()
     : tftSPI(VSPI),
       tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST),
@@ -21,7 +37,10 @@ OledDisplayManager::OledDisplayManager()
       lastFanPct(-1.0f),
       lastAcclimationActive(-1),
       lastAcclimationDay(-1),
-      lastAcclimationScale(-1.0f)
+      lastAcclimationScale(-1.0f),
+      lastIpStr(""),
+      lastOverrideStr(""),
+      lastStatusLineStr("")
 {
     for (int i = 0; i < 4; i++) {
         lastPct[i] = -1.0f;
@@ -36,96 +55,96 @@ bool OledDisplayManager::begin() {
 
     // 2. Hardware SPI via ESP32 GPIO Matrix (SCK=27, MISO=-1, MOSI=23, SS=5)
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
-    tftSPI.setFrequency(8000000);
+    tftSPI.setFrequency(8000000); // 8MHz for breadboard jumper integrity
 
-    // 3. Initialize ST7735 controller with configured variant and orientation
+    // 3. Initialize ST7735 controller with configured variant and landscape orientation
     tft.initR(TFT_INIT_VARIANT);
     tft.setSPISpeed(8000000);
-    tft.setRotation(TFT_ROTATION);
+    tft.setRotation(TFT_ROTATION); // Rotation 1: Landscape mode
 #if defined(TFT_INVERT) && TFT_INVERT
     tft.invertDisplay(true);
 #else
     tft.invertDisplay(false);
 #endif
 
-    // 4. Clean splash screen
-    tft.fillScreen(ST77XX_BLACK);
+    // 4. Splash screen
+    tft.fillScreen(C_BG);
     tft.setTextSize(1);
 
-    tft.setTextColor(ST77XX_CYAN);
-    tft.setCursor(18, 24);
+    tft.setTextColor(C_CYAN);
+    tft.setCursor(12, 22);
+    tft.print("CREATORS AQUARIUM");
+
+    tft.setTextColor(C_WHITE);
+    tft.setCursor(14, 38);
     tft.print("REEF CONTROLLER");
 
-    tft.setTextColor(ST77XX_WHITE);
-    tft.setCursor(44, 42);
-    tft.print("v" FIRMWARE_VERSION);
+    tft.setTextColor(C_DIM_GRAY);
+    tft.setCursor(32, 54);
+    tft.print("v" FIRMWARE_VERSION " (LAND)");
 
-    tft.setTextColor(ST77XX_GREEN);
-    tft.setCursor(24, 60);
+    // Decorative spectrum bar
+    tft.fillRect(14, 76, 25, 4, C_BLUE);
+    tft.fillRect(39, 76, 25, 4, C_WHITE);
+    tft.fillRect(64, 76, 25, 4, C_RED);
+    tft.fillRect(89, 76, 25, 4, C_UV);
+
+    tft.setTextColor(C_GREEN);
+    tft.setCursor(24, 94);
     tft.print("Initializing...");
-
-    // Spectrum decorative color bar
-    tft.fillRect(14, 80, 25, 4, ST77XX_BLUE);
-    tft.fillRect(39, 80, 25, 4, ST77XX_WHITE);
-    tft.fillRect(64, 80, 25, 4, ST77XX_RED);
-    tft.fillRect(89, 80, 25, 4, ST7735_MAGENTA);
 
     delay(750);
 
-    // 5. Draw static UI layout once (flicker-free baseline)
+    // 5. Draw static UI layout
     drawStaticLayout();
     displayPresent = true;
-    Serial.printf("[TFT] ST7735 (128x128 @ 8MHz) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
-                  TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED);
+    Serial.printf("[TFT] ST7735 (128x128 Landscape @ 8MHz, Rot:%d) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
+                  TFT_ROTATION, TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED);
     return true;
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
     if (!displayPresent) return;
-    // Digital on/off or analog backlight control
     digitalWrite(TFT_LED, brightness > 10 ? HIGH : LOW);
 }
 
 void OledDisplayManager::drawStaticLayout() {
-    tft.fillScreen(ST77XX_BLACK);
+    tft.fillScreen(C_BG);
 
-    // Top Header separator (Y=12)
-    tft.drawFastHLine(0, 12, 128, 0x4208);
+    // Card 1: Top Header Card (X=0, Y=0, W=128, H=23)
+    tft.drawRoundRect(0, 0, 128, 23, 3, C_CARD_BORDER);
 
-    // Schedule Label (Y=26)
     tft.setTextSize(1);
-    tft.setTextColor(0x7BEF); // dim gray
-    tft.setCursor(2, 26);
-    tft.print("Sched:");
+    tft.setTextColor(C_CYAN, C_BG);
+    tft.setCursor(4, 3);
+    tft.print("CREATORS REEF");
 
-    // Mid separator before channel bars (Y=36)
-    tft.drawFastHLine(0, 36, 128, 0x4208);
+    // Card 2: Light Control Card (X=0, Y=25, W=128, H=51)
+    tft.drawRoundRect(0, 25, 128, 51, 3, C_CARD_BORDER);
 
-    // Channel labels and bar frames (Y=40, 52, 64, 76)
+    // Channel labels and recessed slider slots
     const char* labels[4] = {"BLU", "WHT", "RED", " UV"};
-    const uint16_t colors[4] = {
-        0x001F,  // Blue
-        0xFFFF,  // White
-        0xF800,  // Red
-        0xF81F   // Magenta / UV
-    };
+    const uint16_t colors[4] = { C_BLUE, C_WHITE, C_RED, C_UV };
 
     for (int i = 0; i < 4; i++) {
-        int y = 40 + (i * 12);
-        tft.setTextColor(colors[i]);
-        tft.setCursor(2, y);
+        int y = 28 + (i * 12);
+        tft.setTextColor(colors[i], C_BG);
+        tft.setCursor(3, y);
         tft.print(labels[i]);
 
-        // Bar frame: x=24, y=y, w=74, h=8
-        tft.drawRect(24, y, 74, 8, 0x52AA);
+        // Recessed slider slot: X=24, Y=y+1, W=68, H=6
+        tft.fillRoundRect(24, y + 1, 68, 6, 2, C_SLOT_BG);
     }
 
-    // Lower separator (Y=88)
-    tft.drawFastHLine(0, 88, 128, 0x4208);
+    // Card 3: System & Schedule Card (X=0, Y=78, W=128, H=50)
+    tft.drawRoundRect(0, 78, 128, 50, 3, C_CARD_BORDER);
 
-    // Fan label (Y=92)
-    tft.setTextColor(0x7BEF);
-    tft.setCursor(2, 92);
+    tft.setTextColor(0x05BF, C_BG); // Dim Cyan
+    tft.setCursor(3, 81);
+    tft.print("Sched:");
+
+    tft.setTextColor(C_DIM_GRAY, C_BG);
+    tft.setCursor(3, 92);
     tft.print("Fan:");
 
     layoutInitialized = true;
@@ -134,66 +153,72 @@ void OledDisplayManager::drawStaticLayout() {
 void OledDisplayManager::updateHeader(const String& timeStr, bool wifiOk, bool cloudOk) {
     tft.setTextSize(1);
 
-    // Time: X=2, Y=2
-    if (timeStr != lastTimeStr) {
-        tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
-        tft.setCursor(2, 2);
-        tft.print(timeStr);
-        lastTimeStr = timeStr;
-    }
-
-    // WiFi Indicator: X=78, Y=2
+    // 1. WiFi Status Pill (X=86, Y=2, W=18, H=8)
     if ((int8_t)wifiOk != lastWifiOk) {
-        tft.setCursor(78, 2);
         if (wifiOk) {
-            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
-            tft.print("WF:OK");
+            tft.fillRoundRect(86, 2, 18, 8, 2, C_GREEN);
+            tft.setTextColor(C_BG);
+            tft.setCursor(88, 3);
+            tft.print("WF");
         } else {
-            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
-            tft.print("WF:--");
+            tft.fillRoundRect(86, 2, 18, 8, 2, 0xF800);
+            tft.setTextColor(C_WHITE);
+            tft.setCursor(88, 3);
+            tft.print("--");
         }
         lastWifiOk = (int8_t)wifiOk;
     }
 
-    // MQTT Broker Indicator: X=112, Y=2
+    // 2. MQTT Cloud Pill (X=106, Y=2, W=18, H=8)
     if ((int8_t)cloudOk != lastCloudOk) {
-        tft.setCursor(112, 2);
         if (cloudOk) {
-            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+            tft.fillRoundRect(106, 2, 18, 8, 2, C_PURPLE);
+            tft.setTextColor(C_WHITE);
+            tft.setCursor(108, 3);
             tft.print("MQ");
         } else {
-            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+            tft.fillRoundRect(106, 2, 18, 8, 2, 0xF800);
+            tft.setTextColor(C_WHITE);
+            tft.setCursor(108, 3);
             tft.print("--");
         }
         lastCloudOk = (int8_t)cloudOk;
+    }
+
+    // 3. Digital Clock (X=4, Y=12)
+    if (timeStr != lastTimeStr) {
+        tft.setTextColor(C_WHITE, C_BG);
+        tft.setCursor(4, 12);
+        tft.print(timeStr);
+        lastTimeStr = timeStr;
     }
 }
 
 void OledDisplayManager::updateModeAndPower(const String& mode, bool masterOn) {
     tft.setTextSize(1);
 
-    // Operating Mode: X=2, Y=15
+    // Mode Badge (X=58, Y=12)
     if (mode != lastMode) {
-        tft.setCursor(2, 15);
+        tft.setCursor(58, 12);
         if (mode == "manual") {
-            tft.setTextColor(0xFD20, ST77XX_BLACK); // Amber / Orange
-            tft.print("[MANUAL]");
+            tft.setTextColor(C_ORANGE, C_BG);
+            tft.print("[MAN] ");
         } else {
-            tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
-            tft.print("[AUTO]  ");
+            tft.setTextColor(C_CYAN, C_BG);
+            tft.print("[AUTO]");
         }
         lastMode = mode;
     }
 
-    // Master Power Output: X=74, Y=15
+    // Master Power Output Badge (X=96, Y=12)
     if ((int8_t)masterOn != lastMasterOn) {
-        tft.setCursor(74, 15);
+        tft.setCursor(96, 12);
         if (masterOn) {
-            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
-            tft.print("[PWR:ON] ");
+            tft.setTextColor(C_GREEN, C_BG);
+            tft.print("[ON] ");
         } else {
-            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
-            tft.print("[PWR:OFF]");
+            tft.setTextColor(0xF800, C_BG);
+            tft.print("[OFF]");
         }
         lastMasterOn = (int8_t)masterOn;
     }
@@ -202,8 +227,8 @@ void OledDisplayManager::updateModeAndPower(const String& mode, bool masterOn) {
 void OledDisplayManager::updateSchedule(const String& scheduleId) {
     if (scheduleId != lastScheduleId) {
         tft.setTextSize(1);
-        tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
-        tft.setCursor(42, 26);
+        tft.setTextColor(C_WHITE, C_BG);
+        tft.setCursor(40, 81);
         char buf[16];
         snprintf(buf, sizeof(buf), "%-14.14s", scheduleId.c_str());
         tft.print(buf);
@@ -219,32 +244,36 @@ void OledDisplayManager::updateChannels(float blue, float white, float red, floa
         constrain(uv, 0.0f, 100.0f)
     };
 
-    const uint16_t colors[4] = { 0x001F, 0xFFFF, 0xF800, 0xF81F };
+    const uint16_t colors[4] = { C_BLUE, C_WHITE, C_RED, C_UV };
 
     for (int i = 0; i < 4; i++) {
-        int y = 40 + (i * 12);
+        int y = 28 + (i * 12);
         float pct = pcts[i];
 
-        // Inner bar dimensions: width=70px, height=6px (x=26..95, y=y+1..y+6)
-        int newW = (int)round((pct / 100.0f) * 70.0f);
-        newW = constrain(newW, 0, 70);
+        // Usable inner slider track length = 64 pixels (x = 25..89)
+        int newW = (int)round((pct / 100.0f) * 64.0f);
+        newW = constrain(newW, 0, 64);
         int oldW = lastBarWidth[i];
 
-        // Differential redraw: only draw newly added or removed section
+        // Differential redraw of progress bar + glowing thumb knob
         if (newW != oldW || lastPct[i] < 0) {
             if (newW > oldW) {
-                tft.fillRect(26 + oldW, y + 1, newW - oldW, 6, colors[i]);
+                // Extend colored fill
+                tft.fillRect(25 + oldW, y + 2, newW - oldW, 4, colors[i]);
             } else if (newW < oldW) {
-                tft.fillRect(26 + newW, y + 1, oldW - newW, 6, ST77XX_BLACK);
+                // Clear retracted region back to slot background
+                tft.fillRect(25 + newW, y + 2, (oldW - newW) + 4, 4, C_SLOT_BG);
             }
+            // Draw sleek white slider thumb knob at current position
+            tft.fillRect(25 + newW, y + 1, 3, 6, C_WHITE);
             lastBarWidth[i] = newW;
         }
 
-        // Percentage text: X=101, Y=y
+        // Percentage readout: X=96, Y=y
         if ((int)round(pct) != (int)round(lastPct[i]) || lastPct[i] < 0) {
             tft.setTextSize(1);
-            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
-            tft.setCursor(101, y);
+            tft.setTextColor(C_WHITE, C_BG);
+            tft.setCursor(96, y);
             char buf[8];
             snprintf(buf, sizeof(buf), "%3d%%", (int)round(pct));
             tft.print(buf);
@@ -258,7 +287,7 @@ void OledDisplayManager::updateFooter(float fan, const String& mode, long remSec
 
     // 1. Fan Speed (X=28, Y=92)
     if ((int)round(fan) != (int)round(lastFanPct)) {
-        tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+        tft.setTextColor(C_CYAN, C_BG);
         tft.setCursor(28, 92);
         char buf[8];
         snprintf(buf, sizeof(buf), "%3d%%", (int)round(fan));
@@ -266,7 +295,7 @@ void OledDisplayManager::updateFooter(float fan, const String& mode, long remSec
         lastFanPct = fan;
     }
 
-    // 2. Mode / Manual Override Countdown (X=58, Y=92)
+    // 2. Mode / Manual Override Countdown (X=54, Y=92)
     char ovrBuf[16];
     if (mode == "manual") {
         if (remSec > 0) {
@@ -288,36 +317,36 @@ void OledDisplayManager::updateFooter(float fan, const String& mode, long remSec
     String ovrStr = String(ovrBuf);
     if (ovrStr != lastOverrideStr) {
         if (mode == "manual") {
-            tft.setTextColor(0xFD20, ST77XX_BLACK); // Amber / Orange
+            tft.setTextColor(C_ORANGE, C_BG);
         } else {
-            tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+            tft.setTextColor(C_CYAN, C_BG);
         }
-        tft.setCursor(58, 92);
+        tft.setCursor(54, 92);
         tft.print(ovrStr);
         lastOverrideStr = ovrStr;
     }
 
-    // 3. Middle Status Row (X=2, Y=104): Acclimation vs Normal Operation
+    // 3. Status / Acclimation Row (X=3, Y=104)
     char statusBuf[24];
     uint16_t statusColor;
     if (acclimationActive) {
         snprintf(statusBuf, sizeof(statusBuf), "ACC: Day %d/%d (%d%%)  ",
                  accDay, accDaysTotal, (int)round(accScale));
-        statusColor = ST77XX_YELLOW;
+        statusColor = 0xFFE0; // Bright Yellow
     } else {
         snprintf(statusBuf, sizeof(statusBuf), "Status: Schedule OK  ");
-        statusColor = 0x7BEF; // Dim gray
+        statusColor = C_GREEN;
     }
 
     String statusStr = String(statusBuf);
     if (statusStr != lastStatusLineStr) {
-        tft.setTextColor(statusColor, ST77XX_BLACK);
-        tft.setCursor(2, 104);
+        tft.setTextColor(statusColor, C_BG);
+        tft.setCursor(3, 104);
         tft.print(statusStr);
         lastStatusLineStr = statusStr;
     }
 
-    // 4. Device Local IP Address (X=2, Y=116)
+    // 4. Device Local IP Address (X=3, Y=116)
     char ipBuf[24];
     bool isConnected = (ipStr.length() > 0 && ipStr != "0.0.0.0" && ipStr != "Disconnected");
     if (isConnected) {
@@ -328,8 +357,8 @@ void OledDisplayManager::updateFooter(float fan, const String& mode, long remSec
 
     String fullIpStr = String(ipBuf);
     if (fullIpStr != lastIpStr) {
-        tft.setTextColor(isConnected ? ST77XX_GREEN : ST77XX_RED, ST77XX_BLACK);
-        tft.setCursor(2, 116);
+        tft.setTextColor(isConnected ? C_GREEN : 0xF800, C_BG);
+        tft.setCursor(3, 116);
         tft.print(fullIpStr);
         lastIpStr = fullIpStr;
     }
@@ -339,7 +368,7 @@ void OledDisplayManager::loop() {
     if (!displayPresent) return;
 
     unsigned long now = millis();
-    if (now - lastRenderMillis < 400) return; // Refresh at ~2.5 Hz with zero flicker
+    if (now - lastRenderMillis < 400) return; // ~2.5 Hz refresh with zero flicker
     lastRenderMillis = now;
 
     DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(WiFi.status() == WL_CONNECTED, mqttManager.isConnected());
