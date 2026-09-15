@@ -6,6 +6,8 @@
 #include <Adafruit_ST7735.h>
 #include "../include/config.h"
 
+struct DeviceStateSnapshot;
+
 class OledDisplayManager {
 public:
     OledDisplayManager();
@@ -19,6 +21,9 @@ private:
     bool displayPresent;
     bool layoutInitialized;
     unsigned long lastRenderMillis;
+    unsigned long lastViewSwitchMillis;
+    unsigned long manualModeLockMillis;
+    uint8_t currentView; // 0 = Control & Spectrum Arch, 1 = 24h Curves & System Status
 
     // Cache of last drawn values for flicker-free differential redraws
     String lastTimeStr;
@@ -28,7 +33,7 @@ private:
     int8_t lastMasterOn;
     String lastScheduleId;
     float lastPct[4];       // Blue, White, Red, UV
-    int lastBarWidth[4];    // 0..70 pixels
+    int lastBarWidth[4];    // 0..64 pixels
     float lastFanPct;
     int8_t lastAcclimationActive;
     int lastAcclimationDay;
@@ -36,13 +41,15 @@ private:
     String lastIpStr;
     String lastOverrideStr;
     String lastStatusLineStr;
+    int lastSunDotX;
+    int lastSunDotY;
 
-    void drawStaticLayout();
-    void updateHeader(const String& timeStr, bool wifiOk, bool cloudOk);
-    void updateModeAndPower(const String& mode, bool masterOn);
-    void updateSchedule(const String& scheduleId);
-    void updateChannels(float blue, float white, float red, float uv);
-    void updateFooter(float fan, const String& mode, long remSec, bool acclimationActive, int accDay, int accDaysTotal, float accScale, const String& ipStr);
+    void drawView0Static();
+    void drawView1Static();
+    void drawRainbowArch();
+    void draw24hIntensityGraph();
+    void renderView0(const DeviceStateSnapshot& state, const String& timeStr);
+    void renderView1(const DeviceStateSnapshot& state, const String& timeStr);
 };
 
 extern OledDisplayManager oledDisplay;

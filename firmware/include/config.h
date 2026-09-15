@@ -63,9 +63,9 @@
 #define TFT_INIT_VARIANT       INITR_144GREENTAB
 #endif
 
-// Display Orientation (0: default, 1: 90 deg landscape, 2: 180 deg, 3: 270 deg landscape)
+// Display Orientation (0: default, 1: 90 deg, 2: 180 deg, 3: 270 deg)
 #ifndef TFT_ROTATION
-#define TFT_ROTATION           1
+#define TFT_ROTATION           0
 #endif
 
 // Display Color Inversion (set to true if colors appear inverted)
