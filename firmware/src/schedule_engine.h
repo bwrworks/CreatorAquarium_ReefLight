@@ -11,8 +11,11 @@ struct DeviceStateSnapshot {
     String mode;                     // "auto" | "manual"
     ChannelValues live;              // b, w, r, uv, fan
     String manualOverrideExpiresAt;  // ISO string or empty
+    long manualOverrideRemainingSec; // Seconds remaining in manual override (0 if auto)
     String activeScheduleId;
     AcclimationData acclimation;
+    int acclimationDaysElapsed;      // Actual computed elapsed days (e.g. 3)
+    float acclimationCurrentScale;   // Actual computed current intensity scale (e.g. 62.5%)
     String time;
     bool wifiConnected;
     bool cloudConnected;

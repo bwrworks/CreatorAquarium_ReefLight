@@ -359,6 +359,10 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.masterOn = ledcDriver.isMasterOn();
 
         if (currentMode == "manual" && manualOverrideUntilEpoch > 0) {
+            time_t nowEpoch = rtcManager.getEpoch();
+            long rem = (long)difftime(manualOverrideUntilEpoch, nowEpoch);
+            snap.manualOverrideRemainingSec = (rem > 0) ? rem : 0;
+
             time_t raw = manualOverrideUntilEpoch + rtcManager.getTimezoneOffset();
             struct tm* ti = gmtime(&raw);
             char buf[30];
@@ -367,7 +371,39 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
                      ti->tm_hour, ti->tm_min, ti->tm_sec);
             snap.manualOverrideExpiresAt = String(buf);
         } else {
+            snap.manualOverrideRemainingSec = 0;
             snap.manualOverrideExpiresAt = "";
+        }
+
+        if (acclimation.active) {
+            time_t startedEpoch = 0;
+            int y, m, d, hh, mm, ss;
+            if (sscanf(acclimation.startedAt.c_str(), "%d-%d-%dT%d:%d:%d", &y, &m, &d, &hh, &mm, &ss) == 6) {
+                struct tm tmStart;
+                memset(&tmStart, 0, sizeof(struct tm));
+                tmStart.tm_year = y - 1900;
+                tmStart.tm_mon = m - 1;
+                tmStart.tm_mday = d;
+                tmStart.tm_hour = hh;
+                tmStart.tm_min = mm;
+                tmStart.tm_sec = ss;
+                startedEpoch = mktime(&tmStart) - rtcManager.getTimezoneOffset();
+            }
+            time_t nowEpoch = rtcManager.getEpoch();
+            if (startedEpoch > 0 && nowEpoch >= startedEpoch) {
+                double elapsedSeconds = difftime(nowEpoch, startedEpoch);
+                int days = (int)(elapsedSeconds / 86400.0);
+                snap.acclimationDaysElapsed = min(days, acclimation.daysTotal);
+                double progress = (double)days / (double)acclimation.daysTotal;
+                float currentPct = acclimation.startPct + (100.0f - acclimation.startPct) * (float)progress;
+                snap.acclimationCurrentScale = constrain(currentPct, acclimation.startPct, 100.0f);
+            } else {
+                snap.acclimationDaysElapsed = 0;
+                snap.acclimationCurrentScale = acclimation.startPct;
+            }
+        } else {
+            snap.acclimationDaysElapsed = 0;
+            snap.acclimationCurrentScale = 100.0f;
         }
 
         xSemaphoreGive(mutex);

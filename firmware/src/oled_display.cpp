@@ -36,9 +36,11 @@ bool OledDisplayManager::begin() {
 
     // 2. Hardware SPI via ESP32 GPIO Matrix (SCK=27, MISO=-1, MOSI=23, SS=5)
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
+    tftSPI.setFrequency(8000000);
 
     // 3. Initialize ST7735 controller with configured variant and orientation
     tft.initR(TFT_INIT_VARIANT);
+    tft.setSPISpeed(8000000);
     tft.setRotation(TFT_ROTATION);
 #if defined(TFT_INVERT) && TFT_INVERT
     tft.invertDisplay(true);
@@ -73,7 +75,7 @@ bool OledDisplayManager::begin() {
     // 5. Draw static UI layout once (flicker-free baseline)
     drawStaticLayout();
     displayPresent = true;
-    Serial.printf("[TFT] ST7735 (128x128) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
+    Serial.printf("[TFT] ST7735 (128x128 @ 8MHz) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
                   TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED);
     return true;
 }
@@ -118,12 +120,12 @@ void OledDisplayManager::drawStaticLayout() {
         tft.drawRect(24, y, 74, 8, 0x52AA);
     }
 
-    // Lower separator (Y=89)
-    tft.drawFastHLine(0, 89, 128, 0x4208);
+    // Lower separator (Y=88)
+    tft.drawFastHLine(0, 88, 128, 0x4208);
 
-    // Fan label
+    // Fan label (Y=92)
     tft.setTextColor(0x7BEF);
-    tft.setCursor(2, 93);
+    tft.setCursor(2, 92);
     tft.print("Fan:");
 
     layoutInitialized = true;
@@ -251,58 +253,85 @@ void OledDisplayManager::updateChannels(float blue, float white, float red, floa
     }
 }
 
-void OledDisplayManager::updateFooter(float fan, bool acclimationActive, int accDay, int accDaysTotal, float accScale) {
+void OledDisplayManager::updateFooter(float fan, const String& mode, long remSec, bool acclimationActive, int accDay, int accDaysTotal, float accScale, const String& ipStr) {
     tft.setTextSize(1);
 
-    // Fan Speed (X=28, Y=93)
+    // 1. Fan Speed (X=28, Y=92)
     if ((int)round(fan) != (int)round(lastFanPct)) {
         tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
-        tft.setCursor(28, 93);
+        tft.setCursor(28, 92);
         char buf[8];
         snprintf(buf, sizeof(buf), "%3d%%", (int)round(fan));
         tft.print(buf);
         lastFanPct = fan;
     }
 
-    // PWM Status badge (X=74, Y=93)
-    tft.setCursor(74, 93);
-    if (lastMode == "manual") {
-        tft.setTextColor(0xFD20, ST77XX_BLACK);
-        tft.print("DIRECT PWM");
+    // 2. Mode / Manual Override Countdown (X=58, Y=92)
+    char ovrBuf[16];
+    if (mode == "manual") {
+        if (remSec > 0) {
+            long h = remSec / 3600;
+            long m = (remSec % 3600) / 60;
+            long s = remSec % 60;
+            if (h > 0) {
+                snprintf(ovrBuf, sizeof(ovrBuf), "OVR:%ldh%02ldm ", h, m);
+            } else {
+                snprintf(ovrBuf, sizeof(ovrBuf), "OVR:%02ldm%02lds", m, s);
+            }
+        } else {
+            snprintf(ovrBuf, sizeof(ovrBuf), "MANUAL HOLD");
+        }
     } else {
-        tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
-        tft.print("RAMP AUTO ");
+        snprintf(ovrBuf, sizeof(ovrBuf), "AUTO RAMP  ");
     }
 
-    // Bottom Area (Y=105, 116): Acclimation vs Device Status
+    String ovrStr = String(ovrBuf);
+    if (ovrStr != lastOverrideStr) {
+        if (mode == "manual") {
+            tft.setTextColor(0xFD20, ST77XX_BLACK); // Amber / Orange
+        } else {
+            tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+        }
+        tft.setCursor(58, 92);
+        tft.print(ovrStr);
+        lastOverrideStr = ovrStr;
+    }
+
+    // 3. Middle Status Row (X=2, Y=104): Acclimation vs Normal Operation
+    char statusBuf[24];
+    uint16_t statusColor;
     if (acclimationActive) {
-        if (lastAcclimationActive != 1 || accDay != lastAcclimationDay || accScale != lastAcclimationScale) {
-            tft.setTextColor(ST7735_MAGENTA, ST77XX_BLACK);
-            tft.setCursor(2, 105);
-            tft.print(">> ACCLIMATION RAMP <<");
-
-            tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
-            tft.setCursor(2, 116);
-            char buf[24];
-            snprintf(buf, sizeof(buf), "Day %d/%d (Scale %d%%) ", accDay, accDaysTotal, (int)round(accScale));
-            tft.print(buf);
-
-            lastAcclimationActive = 1;
-            lastAcclimationDay = accDay;
-            lastAcclimationScale = accScale;
-        }
+        snprintf(statusBuf, sizeof(statusBuf), "ACC: Day %d/%d (%d%%)  ",
+                 accDay, accDaysTotal, (int)round(accScale));
+        statusColor = ST77XX_YELLOW;
     } else {
-        if (lastAcclimationActive != 0) {
-            tft.setTextColor(0x7BEF, ST77XX_BLACK); // dim gray
-            tft.setCursor(2, 105);
-            tft.print("v" FIRMWARE_VERSION " | FreeRTOS      ");
+        snprintf(statusBuf, sizeof(statusBuf), "Status: Schedule OK  ");
+        statusColor = 0x7BEF; // Dim gray
+    }
 
-            tft.setTextColor(0x03EF, ST77XX_BLACK); // subtle teal
-            tft.setCursor(2, 116);
-            tft.print("HiveMQ Cloud Connected ");
+    String statusStr = String(statusBuf);
+    if (statusStr != lastStatusLineStr) {
+        tft.setTextColor(statusColor, ST77XX_BLACK);
+        tft.setCursor(2, 104);
+        tft.print(statusStr);
+        lastStatusLineStr = statusStr;
+    }
 
-            lastAcclimationActive = 0;
-        }
+    // 4. Device Local IP Address (X=2, Y=116)
+    char ipBuf[24];
+    bool isConnected = (ipStr.length() > 0 && ipStr != "0.0.0.0" && ipStr != "Disconnected");
+    if (isConnected) {
+        snprintf(ipBuf, sizeof(ipBuf), "IP: %-17.17s", ipStr.c_str());
+    } else {
+        snprintf(ipBuf, sizeof(ipBuf), "IP: Disconnected    ");
+    }
+
+    String fullIpStr = String(ipBuf);
+    if (fullIpStr != lastIpStr) {
+        tft.setTextColor(isConnected ? ST77XX_GREEN : ST77XX_RED, ST77XX_BLACK);
+        tft.setCursor(2, 116);
+        tft.print(fullIpStr);
+        lastIpStr = fullIpStr;
     }
 }
 
@@ -320,12 +349,14 @@ void OledDisplayManager::loop() {
     updateSchedule(state.activeScheduleId);
     updateChannels(state.live.blue, state.live.white, state.live.red, state.live.uv);
 
-    int elapsedDays = 0;
-    float currentScale = 100.0f;
-    if (state.acclimation.active) {
-        elapsedDays = 0;
-        currentScale = state.acclimation.startPct;
-    }
+    String ipStr = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : "Disconnected";
 
-    updateFooter(state.live.fan, state.acclimation.active, elapsedDays, state.acclimation.daysTotal, currentScale);
+    updateFooter(state.live.fan,
+                 state.mode,
+                 state.manualOverrideRemainingSec,
+                 state.acclimation.active,
+                 state.acclimationDaysElapsed,
+                 state.acclimation.daysTotal,
+                 state.acclimationCurrentScale,
+                 ipStr);
 }

@@ -77,12 +77,8 @@ void MqttManager::connectToBroker() {
     Serial.printf("[MQTT] Connecting to HiveMQ Cloud %s:%d as %s...\n",
                   broker.c_str(), brokerPort, devId.c_str());
 
-    IPAddress brokerIp;
-    if (WiFi.hostByName(broker.c_str(), brokerIp)) {
-        mqttClient.setServer(brokerIp, brokerPort);
-    } else {
-        mqttClient.setServer(broker.c_str(), brokerPort);
-    }
+    // Always connect using domain name so TLS Server Name Indication (SNI) is preserved for HiveMQ Cloud
+    mqttClient.setServer(broker.c_str(), brokerPort);
 
     // LWT: Status topic with payload "offline", QoS 1, retained = true (TDD §4 & SRS FR-14)
     String clientId = devId + "-" + String(random(1000, 9999));

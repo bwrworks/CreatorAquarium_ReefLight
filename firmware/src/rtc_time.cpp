@@ -4,9 +4,9 @@
 
 RtcTimeManager rtcManager;
 
-static const char* ntpServer1 = "pool.ntp.org";
-static const char* ntpServer2 = "time.google.com";
-static const char* ntpServer3 = "time.cloudflare.com";
+static const char* ntpServer1 = "in.pool.ntp.org";
+static const char* ntpServer2 = "pool.ntp.org";
+static const char* ntpServer3 = "time.google.com";
 
 RtcTimeManager::RtcTimeManager()
     : rtcPresent(false),
@@ -60,28 +60,34 @@ void RtcTimeManager::updateRtcFromSystemTime() {
 bool RtcTimeManager::syncNtp() {
     if (WiFi.status() != WL_CONNECTED) return false;
 
-    configTime(timezoneOffsetSec, 0, ntpServer1, ntpServer2, ntpServer3);
+    Serial.printf("[NTP] Requesting sync from %s (%s, %s)...\n", ntpServer1, ntpServer2, ntpServer3);
+    // Use 0, 0 so system clock stores true UTC
+    configTime(0, 0, ntpServer1, ntpServer2, ntpServer3);
     struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 5000)) {
+    if (getLocalTime(&timeinfo, 6000)) {
         timeConfirmed = true;
         lastNtpSyncMillis = millis();
+        time_t localEpoch = time(NULL) + timezoneOffsetSec;
+        struct tm* loc = gmtime(&localEpoch);
         Serial.printf("[NTP] Successful sync. Local time: %04d-%02d-%02d %02d:%02d:%02d\n",
-                      timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
-                      timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+                      loc->tm_year + 1900, loc->tm_mon + 1, loc->tm_mday,
+                      loc->tm_hour, loc->tm_min, loc->tm_sec);
         if (rtcPresent) {
             updateRtcFromSystemTime();
         }
         return true;
     }
+    Serial.println("[NTP] Sync timed out. Retrying in background...");
     return false;
 }
 
 void RtcTimeManager::loop() {
-    // Re-sync NTP periodically if WiFi connected (every 6 hours)
+    // Re-sync NTP periodically if WiFi connected (every 6 hours, or every 15s until first sync)
     unsigned long now = millis();
     if (WiFi.status() == WL_CONNECTED) {
-        if (!timeConfirmed || (now - lastNtpSyncMillis > 21600000UL)) {
-            if (now - lastNtpAttemptMillis > 30000UL) {
+        unsigned long retryInterval = timeConfirmed ? 21600000UL : 15000UL;
+        if (!timeConfirmed || (now - lastNtpSyncMillis > retryInterval)) {
+            if (now - lastNtpAttemptMillis > retryInterval) {
                 lastNtpAttemptMillis = now;
                 syncNtp();
             }

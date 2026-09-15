@@ -33,13 +33,16 @@ private:
     int8_t lastAcclimationActive;
     int lastAcclimationDay;
     float lastAcclimationScale;
+    String lastIpStr;
+    String lastOverrideStr;
+    String lastStatusLineStr;
 
     void drawStaticLayout();
     void updateHeader(const String& timeStr, bool wifiOk, bool cloudOk);
     void updateModeAndPower(const String& mode, bool masterOn);
     void updateSchedule(const String& scheduleId);
     void updateChannels(float blue, float white, float red, float uv);
-    void updateFooter(float fan, bool acclimationActive, int accDay, int accDaysTotal, float accScale);
+    void updateFooter(float fan, const String& mode, long remSec, bool acclimationActive, int accDay, int accDaysTotal, float accScale, const String& ipStr);
 };
 
 extern OledDisplayManager oledDisplay;
