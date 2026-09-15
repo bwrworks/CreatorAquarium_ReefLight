@@ -1,28 +1,45 @@
 #pragma once
 
 #include <Arduino.h>
-#include <Wire.h>
+#include <SPI.h>
 #include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <Adafruit_ST7735.h>
 #include "../include/config.h"
 
 class OledDisplayManager {
 public:
     OledDisplayManager();
     bool begin();
-    void loop(); // Handles automatic page cycling
+    void loop();
     void setBrightness(uint8_t brightness);
 
 private:
-    Adafruit_SSD1306 display;
+    SPIClass tftSPI;
+    Adafruit_ST7735 tft;
     bool displayPresent;
-    int currentPage;
-    unsigned long lastPageSwitchMillis;
+    bool layoutInitialized;
+    unsigned long lastRenderMillis;
 
-    void drawPage1_Status();
-    void drawPage2_Channels();
-    void drawPage3_Network();
-    void drawPage4_Alerts();
+    // Cache of last drawn values for flicker-free differential redraws
+    String lastTimeStr;
+    int8_t lastWifiOk;
+    int8_t lastCloudOk;
+    String lastMode;
+    int8_t lastMasterOn;
+    String lastScheduleId;
+    float lastPct[4];       // Blue, White, Red, UV
+    int lastBarWidth[4];    // 0..70 pixels
+    float lastFanPct;
+    int8_t lastAcclimationActive;
+    int lastAcclimationDay;
+    float lastAcclimationScale;
+
+    void drawStaticLayout();
+    void updateHeader(const String& timeStr, bool wifiOk, bool cloudOk);
+    void updateModeAndPower(const String& mode, bool masterOn);
+    void updateSchedule(const String& scheduleId);
+    void updateChannels(float blue, float white, float red, float uv);
+    void updateFooter(float fan, bool acclimationActive, int accDay, int accDaysTotal, float accScale);
 };
 
 extern OledDisplayManager oledDisplay;

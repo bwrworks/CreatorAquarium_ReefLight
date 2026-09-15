@@ -7,210 +7,325 @@
 OledDisplayManager oledDisplay;
 
 OledDisplayManager::OledDisplayManager()
-    : display(OLED_SCREEN_WIDTH, OLED_SCREEN_HEIGHT, &Wire, -1),
+    : tftSPI(VSPI),
+      tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST),
       displayPresent(false),
-      currentPage(0),
-      lastPageSwitchMillis(0) {}
+      layoutInitialized(false),
+      lastRenderMillis(0),
+      lastTimeStr(""),
+      lastWifiOk(-1),
+      lastCloudOk(-1),
+      lastMode(""),
+      lastMasterOn(-1),
+      lastScheduleId(""),
+      lastFanPct(-1.0f),
+      lastAcclimationActive(-1),
+      lastAcclimationDay(-1),
+      lastAcclimationScale(-1.0f)
+{
+    for (int i = 0; i < 4; i++) {
+        lastPct[i] = -1.0f;
+        lastBarWidth[i] = 0;
+    }
+}
 
 bool OledDisplayManager::begin() {
-    if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDRESS)) {
-        Serial.println("[OLED] SSD1306 allocation failed (not found on 0x3C)");
-        displayPresent = false;
-        return false;
-    }
+    // 1. Backlight control via GPIO 26 (Onboard R1 current-limited resistor)
+    pinMode(TFT_LED, OUTPUT);
+    digitalWrite(TFT_LED, HIGH);
 
+    // 2. Hardware SPI via ESP32 GPIO Matrix (SCK=27, MISO=-1, MOSI=23, SS=5)
+    tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
+
+    // 3. Initialize ST7735 controller with configured variant and orientation
+    tft.initR(TFT_INIT_VARIANT);
+    tft.setRotation(TFT_ROTATION);
+#if defined(TFT_INVERT) && TFT_INVERT
+    tft.invertDisplay(true);
+#else
+    tft.invertDisplay(false);
+#endif
+
+    // 4. Clean splash screen
+    tft.fillScreen(ST77XX_BLACK);
+    tft.setTextSize(1);
+
+    tft.setTextColor(ST77XX_CYAN);
+    tft.setCursor(18, 24);
+    tft.print("REEF CONTROLLER");
+
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(44, 42);
+    tft.print("v" FIRMWARE_VERSION);
+
+    tft.setTextColor(ST77XX_GREEN);
+    tft.setCursor(24, 60);
+    tft.print("Initializing...");
+
+    // Spectrum decorative color bar
+    tft.fillRect(14, 80, 25, 4, ST77XX_BLUE);
+    tft.fillRect(39, 80, 25, 4, ST77XX_WHITE);
+    tft.fillRect(64, 80, 25, 4, ST77XX_RED);
+    tft.fillRect(89, 80, 25, 4, ST7735_MAGENTA);
+
+    delay(750);
+
+    // 5. Draw static UI layout once (flicker-free baseline)
+    drawStaticLayout();
     displayPresent = true;
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE);
-    display.setTextSize(1);
-
-    display.setCursor(18, 16);
-    display.print("REEF CONTROLLER");
-    display.setCursor(32, 34);
-    display.print("v" FIRMWARE_VERSION);
-    display.setCursor(24, 48);
-    display.print("Initializing...");
-    display.display();
-
-    delay(800);
+    Serial.printf("[TFT] ST7735 (128x128) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
+                  TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED);
     return true;
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
     if (!displayPresent) return;
-    display.dim(brightness < 128);
+    // Digital on/off or analog backlight control
+    digitalWrite(TFT_LED, brightness > 10 ? HIGH : LOW);
+}
+
+void OledDisplayManager::drawStaticLayout() {
+    tft.fillScreen(ST77XX_BLACK);
+
+    // Top Header separator (Y=12)
+    tft.drawFastHLine(0, 12, 128, 0x4208);
+
+    // Schedule Label (Y=26)
+    tft.setTextSize(1);
+    tft.setTextColor(0x7BEF); // dim gray
+    tft.setCursor(2, 26);
+    tft.print("Sched:");
+
+    // Mid separator before channel bars (Y=36)
+    tft.drawFastHLine(0, 36, 128, 0x4208);
+
+    // Channel labels and bar frames (Y=40, 52, 64, 76)
+    const char* labels[4] = {"BLU", "WHT", "RED", " UV"};
+    const uint16_t colors[4] = {
+        0x001F,  // Blue
+        0xFFFF,  // White
+        0xF800,  // Red
+        0xF81F   // Magenta / UV
+    };
+
+    for (int i = 0; i < 4; i++) {
+        int y = 40 + (i * 12);
+        tft.setTextColor(colors[i]);
+        tft.setCursor(2, y);
+        tft.print(labels[i]);
+
+        // Bar frame: x=24, y=y, w=74, h=8
+        tft.drawRect(24, y, 74, 8, 0x52AA);
+    }
+
+    // Lower separator (Y=89)
+    tft.drawFastHLine(0, 89, 128, 0x4208);
+
+    // Fan label
+    tft.setTextColor(0x7BEF);
+    tft.setCursor(2, 93);
+    tft.print("Fan:");
+
+    layoutInitialized = true;
+}
+
+void OledDisplayManager::updateHeader(const String& timeStr, bool wifiOk, bool cloudOk) {
+    tft.setTextSize(1);
+
+    // Time: X=2, Y=2
+    if (timeStr != lastTimeStr) {
+        tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+        tft.setCursor(2, 2);
+        tft.print(timeStr);
+        lastTimeStr = timeStr;
+    }
+
+    // WiFi Indicator: X=78, Y=2
+    if ((int8_t)wifiOk != lastWifiOk) {
+        tft.setCursor(78, 2);
+        if (wifiOk) {
+            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+            tft.print("WF:OK");
+        } else {
+            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+            tft.print("WF:--");
+        }
+        lastWifiOk = (int8_t)wifiOk;
+    }
+
+    // MQTT Broker Indicator: X=112, Y=2
+    if ((int8_t)cloudOk != lastCloudOk) {
+        tft.setCursor(112, 2);
+        if (cloudOk) {
+            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+            tft.print("MQ");
+        } else {
+            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+            tft.print("--");
+        }
+        lastCloudOk = (int8_t)cloudOk;
+    }
+}
+
+void OledDisplayManager::updateModeAndPower(const String& mode, bool masterOn) {
+    tft.setTextSize(1);
+
+    // Operating Mode: X=2, Y=15
+    if (mode != lastMode) {
+        tft.setCursor(2, 15);
+        if (mode == "manual") {
+            tft.setTextColor(0xFD20, ST77XX_BLACK); // Amber / Orange
+            tft.print("[MANUAL]");
+        } else {
+            tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+            tft.print("[AUTO]  ");
+        }
+        lastMode = mode;
+    }
+
+    // Master Power Output: X=74, Y=15
+    if ((int8_t)masterOn != lastMasterOn) {
+        tft.setCursor(74, 15);
+        if (masterOn) {
+            tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+            tft.print("[PWR:ON] ");
+        } else {
+            tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
+            tft.print("[PWR:OFF]");
+        }
+        lastMasterOn = (int8_t)masterOn;
+    }
+}
+
+void OledDisplayManager::updateSchedule(const String& scheduleId) {
+    if (scheduleId != lastScheduleId) {
+        tft.setTextSize(1);
+        tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+        tft.setCursor(42, 26);
+        char buf[16];
+        snprintf(buf, sizeof(buf), "%-14.14s", scheduleId.c_str());
+        tft.print(buf);
+        lastScheduleId = scheduleId;
+    }
+}
+
+void OledDisplayManager::updateChannels(float blue, float white, float red, float uv) {
+    float pcts[4] = {
+        constrain(blue, 0.0f, 100.0f),
+        constrain(white, 0.0f, 100.0f),
+        constrain(red, 0.0f, 100.0f),
+        constrain(uv, 0.0f, 100.0f)
+    };
+
+    const uint16_t colors[4] = { 0x001F, 0xFFFF, 0xF800, 0xF81F };
+
+    for (int i = 0; i < 4; i++) {
+        int y = 40 + (i * 12);
+        float pct = pcts[i];
+
+        // Inner bar dimensions: width=70px, height=6px (x=26..95, y=y+1..y+6)
+        int newW = (int)round((pct / 100.0f) * 70.0f);
+        newW = constrain(newW, 0, 70);
+        int oldW = lastBarWidth[i];
+
+        // Differential redraw: only draw newly added or removed section
+        if (newW != oldW || lastPct[i] < 0) {
+            if (newW > oldW) {
+                tft.fillRect(26 + oldW, y + 1, newW - oldW, 6, colors[i]);
+            } else if (newW < oldW) {
+                tft.fillRect(26 + newW, y + 1, oldW - newW, 6, ST77XX_BLACK);
+            }
+            lastBarWidth[i] = newW;
+        }
+
+        // Percentage text: X=101, Y=y
+        if ((int)round(pct) != (int)round(lastPct[i]) || lastPct[i] < 0) {
+            tft.setTextSize(1);
+            tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+            tft.setCursor(101, y);
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%3d%%", (int)round(pct));
+            tft.print(buf);
+            lastPct[i] = pct;
+        }
+    }
+}
+
+void OledDisplayManager::updateFooter(float fan, bool acclimationActive, int accDay, int accDaysTotal, float accScale) {
+    tft.setTextSize(1);
+
+    // Fan Speed (X=28, Y=93)
+    if ((int)round(fan) != (int)round(lastFanPct)) {
+        tft.setTextColor(ST77XX_GREEN, ST77XX_BLACK);
+        tft.setCursor(28, 93);
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%3d%%", (int)round(fan));
+        tft.print(buf);
+        lastFanPct = fan;
+    }
+
+    // PWM Status badge (X=74, Y=93)
+    tft.setCursor(74, 93);
+    if (lastMode == "manual") {
+        tft.setTextColor(0xFD20, ST77XX_BLACK);
+        tft.print("DIRECT PWM");
+    } else {
+        tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+        tft.print("RAMP AUTO ");
+    }
+
+    // Bottom Area (Y=105, 116): Acclimation vs Device Status
+    if (acclimationActive) {
+        if (lastAcclimationActive != 1 || accDay != lastAcclimationDay || accScale != lastAcclimationScale) {
+            tft.setTextColor(ST7735_MAGENTA, ST77XX_BLACK);
+            tft.setCursor(2, 105);
+            tft.print(">> ACCLIMATION RAMP <<");
+
+            tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
+            tft.setCursor(2, 116);
+            char buf[24];
+            snprintf(buf, sizeof(buf), "Day %d/%d (Scale %d%%) ", accDay, accDaysTotal, (int)round(accScale));
+            tft.print(buf);
+
+            lastAcclimationActive = 1;
+            lastAcclimationDay = accDay;
+            lastAcclimationScale = accScale;
+        }
+    } else {
+        if (lastAcclimationActive != 0) {
+            tft.setTextColor(0x7BEF, ST77XX_BLACK); // dim gray
+            tft.setCursor(2, 105);
+            tft.print("v" FIRMWARE_VERSION " | FreeRTOS      ");
+
+            tft.setTextColor(0x03EF, ST77XX_BLACK); // subtle teal
+            tft.setCursor(2, 116);
+            tft.print("HiveMQ Cloud Connected ");
+
+            lastAcclimationActive = 0;
+        }
+    }
 }
 
 void OledDisplayManager::loop() {
     if (!displayPresent) return;
 
     unsigned long now = millis();
-    if (now - lastPageSwitchMillis >= OLED_PAGE_INTERVAL_MS) {
-        lastPageSwitchMillis = now;
-        currentPage = (currentPage + 1) % 4;
-    }
+    if (now - lastRenderMillis < 400) return; // Refresh at ~2.5 Hz with zero flicker
+    lastRenderMillis = now;
 
-    display.clearDisplay();
-
-    switch (currentPage) {
-        case 0: drawPage1_Status(); break;
-        case 1: drawPage2_Channels(); break;
-        case 2: drawPage3_Network(); break;
-        case 3: drawPage4_Alerts(); break;
-    }
-
-    // Page indicator dots at bottom center
-    for (int i = 0; i < 4; i++) {
-        int x = 54 + (i * 6);
-        int y = 62;
-        if (i == currentPage) {
-            display.fillCircle(x, y, 2, SSD1306_WHITE);
-        } else {
-            display.drawPixel(x, y, SSD1306_WHITE);
-        }
-    }
-
-    display.display();
-}
-
-void OledDisplayManager::drawPage1_Status() {
     DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(WiFi.status() == WL_CONNECTED, mqttManager.isConnected());
 
-    // Header: Time & Mode
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.print("TIME: ");
-    display.print(rtcManager.getFormattedTime());
+    updateHeader(rtcManager.getFormattedTime(), state.wifiConnected, state.cloudConnected);
+    updateModeAndPower(state.mode, state.masterOn);
+    updateSchedule(state.activeScheduleId);
+    updateChannels(state.live.blue, state.live.white, state.live.red, state.live.uv);
 
-    display.setCursor(85, 0);
-    if (state.mode == "manual") {
-        display.print("[MANUAL]");
-    } else {
-        display.print("[AUTO]");
-    }
-
-    display.drawLine(0, 10, 127, 10, SSD1306_WHITE);
-
-    // Active Schedule
-    display.setCursor(0, 16);
-    display.print("Schedule: ");
-    display.print(state.activeScheduleId);
-
-    // Acclimation
-    display.setCursor(0, 28);
+    int elapsedDays = 0;
+    float currentScale = 100.0f;
     if (state.acclimation.active) {
-        display.printf("Acclim: %.0f%% (%d d)", state.acclimation.startPct, state.acclimation.daysTotal);
-    } else {
-        display.print("Acclimation: Inactive");
+        elapsedDays = 0;
+        currentScale = state.acclimation.startPct;
     }
 
-    // Master Status
-    display.setCursor(0, 40);
-    display.printf("Master LEDs: %s", state.masterOn ? "ON" : "OFF (0%)");
-
-    if (state.mode == "manual" && state.manualOverrideExpiresAt.length() > 0) {
-        display.setCursor(0, 50);
-        display.print("Reverts in: <2h");
-    }
-}
-
-void OledDisplayManager::drawPage2_Channels() {
-    DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(WiFi.status() == WL_CONNECTED, mqttManager.isConnected());
-
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.print("LIVE CHANNELS");
-    display.drawLine(0, 9, 127, 9, SSD1306_WHITE);
-
-    // 4 Channel meters: B, W, R, UV
-    struct ChItem { const char* label; float val; int y; };
-    ChItem items[] = {
-        {"BLU", state.live.blue, 13},
-        {"WHT", state.live.white, 24},
-        {"RED", state.live.red, 35},
-        {"UV ", state.live.uv, 46}
-    };
-
-    for (int i = 0; i < 4; i++) {
-        display.setCursor(0, items[i].y);
-        display.print(items[i].label);
-
-        // Bar outline
-        display.drawRect(26, items[i].y, 68, 7, SSD1306_WHITE);
-        int fillW = (int)((items[i].val / 100.0f) * 66.0f);
-        if (fillW > 0) {
-            display.fillRect(27, items[i].y + 1, fillW, 5, SSD1306_WHITE);
-        }
-
-        display.setCursor(98, items[i].y);
-        display.printf("%3.0f%%", items[i].val);
-    }
-}
-
-void OledDisplayManager::drawPage3_Network() {
-    bool wifiOk = (WiFi.status() == WL_CONNECTED);
-    bool cloudOk = mqttManager.isConnected();
-
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.print("CONNECTIVITY");
-    display.drawLine(0, 9, 127, 9, SSD1306_WHITE);
-
-    display.setCursor(0, 14);
-    display.printf("WiFi:  %s", wifiOk ? "Connected" : "Disconnected");
-
-    display.setCursor(0, 24);
-    if (wifiOk) {
-        display.printf("IP:    %s", WiFi.localIP().toString().c_str());
-    } else {
-        display.print("IP:    None (Portal)");
-    }
-
-    display.setCursor(0, 35);
-    display.printf("Cloud: %s", cloudOk ? "HiveMQ TLS OK" : "Connecting...");
-
-    DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(wifiOk, cloudOk);
-    display.setCursor(0, 46);
-    display.printf("Fan:   %.0f%%", state.live.fan);
-}
-
-void OledDisplayManager::drawPage4_Alerts() {
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.print("SYSTEM ALERTS");
-    display.drawLine(0, 9, 127, 9, SSD1306_WHITE);
-
-    bool wifiOk = (WiFi.status() == WL_CONNECTED);
-    bool cloudOk = mqttManager.isConnected();
-    bool rtcOk = rtcManager.isTimeConfirmed();
-
-    int line = 14;
-    if (!rtcOk) {
-        display.setCursor(0, line);
-        display.print("! Time Unconfirmed");
-        line += 11;
-    }
-    if (!wifiOk) {
-        display.setCursor(0, line);
-        display.print("! WiFi Offline");
-        line += 11;
-    } else if (!cloudOk) {
-        display.setCursor(0, line);
-        display.print("! Cloud Disconnected");
-        line += 11;
-    }
-
-    DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(wifiOk, cloudOk);
-    if (state.mode == "manual") {
-        display.setCursor(0, line);
-        display.print("! Manual Override On");
-        line += 11;
-    }
-
-    if (line == 14) {
-        display.setCursor(0, 24);
-        display.print("No Active Alerts.");
-        display.setCursor(0, 36);
-        display.print("System Nominal.");
-    }
+    updateFooter(state.live.fan, state.acclimation.active, elapsedDays, state.acclimation.daysTotal, currentScale);
 }

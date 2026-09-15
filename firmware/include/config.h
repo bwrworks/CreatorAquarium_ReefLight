@@ -47,8 +47,33 @@
 #define LEDC_CHANNEL_FAN       4
 
 // =========================================================================
-// OLED Display Configuration
+// Display Configuration: 1.44" ST7735 SPI TFT Color Display (128x128)
 // =========================================================================
+#define TFT_CS                 5   // Chip select
+#define TFT_RST                17  // Reset
+#define TFT_DC                 16  // A0 / Data/Command
+#define TFT_MOSI               23  // DI / SDA
+#define TFT_SCLK               27  // CK / SCK
+#define TFT_LED                26  // Backlight pin (onboard R1 current limited)
+#define TFT_WIDTH              128
+#define TFT_HEIGHT             128
+
+// ST7735 Initialization Variant (INITR_144GREENTAB for 1.44" 128x128, or INITR_REDTAB / INITR_BLACKTAB)
+#ifndef TFT_INIT_VARIANT
+#define TFT_INIT_VARIANT       INITR_144GREENTAB
+#endif
+
+// Display Orientation (0: default, 1: 90 deg, 2: 180 deg, 3: 270 deg)
+#ifndef TFT_ROTATION
+#define TFT_ROTATION           0
+#endif
+
+// Display Color Inversion (set to true if colors appear inverted)
+#ifndef TFT_INVERT
+#define TFT_INVERT             false
+#endif
+
+// Legacy OLED settings kept for backward compatibility if needed
 #define OLED_SCREEN_WIDTH      128
 #define OLED_SCREEN_HEIGHT     64
 #define OLED_I2C_ADDRESS       0x3C
