@@ -25,7 +25,7 @@ OledDisplayManager oledDisplay;
 #define C_DIM_GRAY      0x632C // Dim Gray
 
 OledDisplayManager::OledDisplayManager()
-    : tftSPI(VSPI),
+    : tftSPI(HSPI),
       tft(&tftSPI, TFT_CS, TFT_DC, TFT_RST),
       displayPresent(false),
       layoutInitialized(false),

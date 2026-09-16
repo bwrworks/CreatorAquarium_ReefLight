@@ -208,12 +208,12 @@ void setup() {
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
     Wire.setTimeOut(50);
 
-    // 1. Initialize LEDC hardware outputs (Blue: 18, Red: 19, White: 32, UV: 33, Fan: 4)
-    ledcDriver.begin();
-
-    // 2. Initialize I2C: OLED display and DS3231 RTC
+    // 1. Initialize Display and DS3231 RTC first
     oledDisplay.begin();
     rtcManager.begin();
+
+    // 2. Initialize LEDC hardware outputs (Blue: 18, Red: 19, White: 32, UV: 33, Fan: 4)
+    ledcDriver.begin();
 
     // 3. Initialize Flash Storage (LittleFS and NVS Preferences)
     storageManager.begin();
