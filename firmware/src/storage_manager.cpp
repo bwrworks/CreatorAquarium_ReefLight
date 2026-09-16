@@ -286,7 +286,8 @@ void StorageManager::loadLastKnownOutputs(float& b, float& w, float& r, float& u
     w = prefs.getFloat("last_w", 0.0f);
     r = prefs.getFloat("last_r", 0.0f);
     uv = prefs.getFloat("last_uv", 0.0f);
-    fan = prefs.getFloat("last_fan", 0.0f);
+    fan = prefs.getFloat("last_fan", 80.0f);
+    if (fan < 25.0f && fan > 0.0f) fan = 40.0f; // prevent stall below 25%
 }
 
 bool StorageManager::isBootConfirmed() {

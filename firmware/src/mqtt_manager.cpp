@@ -220,11 +220,21 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             stateDirty = true;
         }
     } else if (cmd == "fan") {
+        float val = 80.0f;
         if (!err) {
-            float val = doc["value"] | 40.0f;
-            scheduleEngine.setFan(val);
-            stateDirty = true;
+            if (doc["value"].is<float>()) {
+                val = doc["value"].as<float>();
+            } else if (doc["fan"].is<float>()) {
+                val = doc["fan"].as<float>();
+            } else if (doc.is<float>()) {
+                val = doc.as<float>();
+            }
+        } else {
+            val = (float)atof(payloadStr);
         }
+        val = constrain(val, 0.0f, 100.0f);
+        scheduleEngine.setFan(val);
+        stateDirty = true;
     } else if (cmd == "master") {
         if (!err) {
             bool on = true;

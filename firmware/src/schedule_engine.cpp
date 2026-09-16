@@ -6,11 +6,11 @@ ScheduleEngine::ScheduleEngine()
     : mutex(nullptr),
       currentMode("auto"),
       manualOverrideUntilEpoch(0),
-      currentFan(40.0f),
+      currentFan(80.0f),
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
       tickCount(0) {
-    manualValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    manualValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
 }
 
 void ScheduleEngine::begin() {
@@ -24,9 +24,12 @@ void ScheduleEngine::begin() {
     if (!rtcManager.isTimeConfirmed()) {
         float b, w, r, uv, fn;
         storageManager.loadLastKnownOutputs(b, w, r, uv, fn);
-        Serial.println("[ENGINE] Time unconfirmed on boot. Holding last known outputs.");
+        if (fn < 30.0f) fn = 80.0f;
+        Serial.printf("[ENGINE] Time unconfirmed on boot. Holding last known outputs (Fan: %.1f%%).\n", fn);
         ledcDriver.setChannels(b, w, r, uv);
         ledcDriver.setFan(fn);
+    } else {
+        ledcDriver.setFan(currentFan);
     }
 
     resolveTodaySchedule();
@@ -262,6 +265,11 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
     target.uv    *= scale;
 
     ledcDriver.setChannels(target.blue, target.white, target.red, target.uv);
+
+    // Cooling fan curve: scale with total intensity (min 40%, max 100%) or hold configured fan speed
+    float totalIntensity = (target.blue + target.white + target.red + target.uv) / 4.0f;
+    float dynamicFan = (totalIntensity > 5.0f) ? constrain(40.0f + totalIntensity * 0.6f, 40.0f, 100.0f) : currentFan;
+    ledcDriver.setFan(dynamicFan);
 }
 
 void ScheduleEngine::setMode(const String& mode) {

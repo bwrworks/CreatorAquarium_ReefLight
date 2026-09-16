@@ -4,8 +4,8 @@ LedcDriver ledcDriver;
 
 LedcDriver::LedcDriver() 
     : initialized(false), masterOn(true) {
-    targetValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    appliedValues = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    targetValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
+    appliedValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
 }
 
 void LedcDriver::begin() {
@@ -26,7 +26,10 @@ void LedcDriver::begin() {
     ledcSetup(LEDC_CHANNEL_FAN, LEDC_FAN_FREQ_HZ, LEDC_FAN_RESOLUTION);
     ledcAttachPin(PIN_FAN_PWM, LEDC_CHANNEL_FAN);
 
-    // Initial state: 0%
+    // Initial state: LEDs off, Fan at 80%
+    targetValues.fan = 80.0f;
+    appliedValues.fan = 80.0f;
+    ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(80.0f));
     applyOutputs();
     initialized = true;
 }

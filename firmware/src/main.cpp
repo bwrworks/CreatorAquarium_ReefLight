@@ -202,7 +202,7 @@ void setup() {
     pinMode(PIN_LED_UV, OUTPUT);
     digitalWrite(PIN_LED_UV, HIGH);
     pinMode(PIN_FAN_PWM, OUTPUT);
-    digitalWrite(PIN_FAN_PWM, LOW);
+    digitalWrite(PIN_FAN_PWM, HIGH); // Active-high PWM: start HIGH so fan spins immediately on boot
 
     // Initialize I2C bus once with timeout
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
