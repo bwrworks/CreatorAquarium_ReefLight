@@ -265,7 +265,7 @@ export default function ManualPage() {
           </button>
 
           <button
-            onClick={() => applyPreset('off', { blue: 0, white: 0, red: 0, uv: 0 }, 15)}
+            onClick={() => applyPreset('off', { blue: 0, white: 0, red: 0, uv: 0 }, 0)}
             className={`btn-secondary ${activePreset === 'off' ? 'active' : ''}`}
             style={{
               padding: '0.65rem 0.4rem',

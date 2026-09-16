@@ -62,6 +62,7 @@ private:
     time_t manualOverrideUntilEpoch;
     ChannelValues manualValues;
     float currentFan;
+    bool fanManualOverride;
 
     ScheduleData activeSchedule;
     WeeklyAssignmentData weekly;

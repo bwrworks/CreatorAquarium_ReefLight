@@ -7,6 +7,7 @@ ScheduleEngine::ScheduleEngine()
       currentMode("auto"),
       manualOverrideUntilEpoch(0),
       currentFan(80.0f),
+      fanManualOverride(false),
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
       tickCount(0) {
@@ -266,10 +267,13 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
 
     ledcDriver.setChannels(target.blue, target.white, target.red, target.uv);
 
-    // Cooling fan curve: scale with total intensity (min 40%, max 100%) or hold configured fan speed
-    float totalIntensity = (target.blue + target.white + target.red + target.uv) / 4.0f;
-    float dynamicFan = (totalIntensity > 5.0f) ? constrain(40.0f + totalIntensity * 0.6f, 40.0f, 100.0f) : currentFan;
-    ledcDriver.setFan(dynamicFan);
+    // Only apply automatic dynamic cooling fan curve if user has NOT manually adjusted the fan
+    if (!fanManualOverride) {
+        float totalIntensity = (target.blue + target.white + target.red + target.uv) / 4.0f;
+        float dynamicFan = (totalIntensity > 5.0f) ? constrain(40.0f + totalIntensity * 0.6f, 40.0f, 100.0f) : 40.0f;
+        currentFan = dynamicFan;
+        ledcDriver.setFan(dynamicFan);
+    }
 }
 
 void ScheduleEngine::setMode(const String& mode) {
@@ -277,6 +281,7 @@ void ScheduleEngine::setMode(const String& mode) {
         currentMode = (mode == "manual") ? "manual" : "auto";
         if (currentMode == "auto") {
             manualOverrideUntilEpoch = 0;
+            fanManualOverride = false; // Reset manual override when user resumes auto
             // Instantly evaluate current schedule output without waiting for next tick
             if (rtcManager.isTimeConfirmed()) {
                 evaluateSchedule(rtcManager.getSecondsOfDay());
@@ -307,8 +312,9 @@ void ScheduleEngine::setManualChannels(float b, float w, float r, float uv) {
 
 void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-        currentFan = fanPct;
-        ledcDriver.setFan(fanPct);
+        currentFan = constrain(fanPct, 0.0f, 100.0f);
+        fanManualOverride = true; // User manually locked/adjusted fan speed
+        ledcDriver.setFan(currentFan);
         xSemaphoreGive(mutex);
     }
 }

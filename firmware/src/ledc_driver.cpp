@@ -48,9 +48,11 @@ uint32_t LedcDriver::pctToLedDuty(float pct) {
 }
 
 uint32_t LedcDriver::pctToFanDuty(float pct) {
-    if (pct <= 0.0f) return 0;
+    if (pct <= 0.0f) return 0; // 0% = Motor completely stopped
     if (pct >= 100.0f) return LEDC_FAN_MAX_DUTY;
-    return (uint32_t)((pct / 100.0f) * (float)LEDC_FAN_MAX_DUTY + 0.5f);
+    // Map 1%..100% user range to 30%..100% hardware duty so motor never stalls
+    float effectivePct = 30.0f + (pct / 100.0f) * 70.0f;
+    return (uint32_t)((effectivePct / 100.0f) * (float)LEDC_FAN_MAX_DUTY + 0.5f);
 }
 
 void LedcDriver::setChannels(float blue, float white, float red, float uv) {
