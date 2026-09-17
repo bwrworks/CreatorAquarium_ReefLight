@@ -15,7 +15,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-container">
       <TopHeader />
-      <main style={{ flex: 1, padding: '1rem' }}>{children}</main>
+      <main style={{ flex: 1, padding: '1rem 1.15rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {children}
+      </main>
       <BottomNav />
     </div>
   );

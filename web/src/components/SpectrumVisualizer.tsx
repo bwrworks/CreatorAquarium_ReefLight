@@ -2,23 +2,21 @@
 
 import React, { useState } from 'react';
 import { Channels } from '../lib/types';
-import { Activity, Info, Eye, Layers } from 'lucide-react';
-import Image from 'next/image';
+import { Activity, Layers, Sparkles } from 'lucide-react';
 
 interface SpectrumVisualizerProps {
   channels: Channels;
   title?: string;
 }
 
-export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Distribution' }: SpectrumVisualizerProps) {
+export function SpectrumVisualizer({ channels, title = 'Spectral Power Distribution' }: SpectrumVisualizerProps) {
   const [viewReference, setViewReference] = useState(false);
 
-  // Generate dynamic spectrum curve based on channel inputs
-  // Wavelength range: 390nm to 700nm
+  // Generate dynamic spectrum curve based on channel inputs (390nm to 700nm)
   const width = 600;
-  const height = 180;
+  const height = 175;
 
-  // Gaussian helper to compute spectral curve intensity at wavelength wl (nm)
+  // Gaussian spectral curve intensity at wavelength wl (nm)
   const getIntensity = (wl: number) => {
     // UV peak at 405nm (2x Actinic UV)
     const uvContrib = (channels.uv / 100) * Math.exp(-Math.pow((wl - 405) / 14, 2)) * 85;
@@ -54,57 +52,125 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
   areaD += ` L ${width} ${height} Z`;
 
   return (
-    <div className="card-surface" style={{ padding: '1.25rem' }}>
+    <div className="card-surface" style={{ padding: '1.2rem' }}>
+      {/* Header Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#09090b', border: '1px solid #e2e8f0' }}>
-            <Activity size={17} />
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38bdf8',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <Activity size={16} strokeWidth={2.4} />
           </div>
           <div>
-            <h3 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#09090b', letterSpacing: '-0.01em' }}>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
               {title}
             </h3>
-            <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
-              Photosynthetically Active Radiation (400nm – 700nm PAR)
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Live PAR Spectrum (400nm – 700nm)
             </span>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setViewReference(!viewReference)}
-          className="btn-secondary"
-          style={{ fontSize: '0.74rem', padding: '0.35rem 0.65rem' }}
+        {/* Segmented Pill Selector */}
+        <div
+          style={{
+            display: 'flex',
+            background: 'rgba(255, 255, 255, 0.06)',
+            padding: '2px',
+            borderRadius: 'var(--radius-full)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
         >
-          {viewReference ? <Layers size={13} /> : <Eye size={13} />}
-          {viewReference ? 'Live Curve' : 'Lab Reference'}
-        </button>
+          <button
+            type="button"
+            onClick={() => setViewReference(false)}
+            style={{
+              padding: '0.28rem 0.65rem',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-full)',
+              border: 'none',
+              cursor: 'pointer',
+              background: !viewReference ? '#ffffff' : 'transparent',
+              color: !viewReference ? '#000000' : 'var(--text-muted)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Live Mix
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewReference(true)}
+            style={{
+              padding: '0.28rem 0.65rem',
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              borderRadius: 'var(--radius-full)',
+              border: 'none',
+              cursor: 'pointer',
+              background: viewReference ? '#ffffff' : 'transparent',
+              color: viewReference ? '#000000' : 'var(--text-muted)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            Reference
+          </button>
+        </div>
       </div>
 
       {viewReference ? (
-        <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#ffffff' }}>
+        <div
+          style={{
+            borderRadius: '14px',
+            overflow: 'hidden',
+            border: '1px solid var(--border-subtle)',
+            background: '#0a0a0d',
+          }}
+        >
           <img
             src="/spectrum-reference.jpg"
-            alt="Reef Aquarium LED Spectral Power Distribution Reference"
-            style={{ width: '100%', height: 'auto', display: 'block' }}
+            alt="Reef Aquarium LED Spectral Reference"
+            style={{ width: '100%', height: 'auto', display: 'block', opacity: 0.95 }}
           />
-          <div style={{ padding: '0.6rem 0.85rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', fontSize: '0.72rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <Info size={14} color="#0284c7" />
-            <span>Target Coral PAR Profile: High Royal Blue (450nm) + Actinic UV (405nm) for chlorophyll a & zooxanthellae.</span>
+          <div
+            style={{
+              padding: '0.65rem 0.9rem',
+              background: 'rgba(18, 18, 22, 0.9)',
+              borderTop: '1px solid var(--border-subtle)',
+              fontSize: '0.72rem',
+              color: 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+            }}
+          >
+            <Sparkles size={14} color="#a855f7" />
+            <span>Target Coral PAR: High Royal Blue (450nm) + Actinic UV (405nm) for zooxanthellae photosynthesis.</span>
           </div>
         </div>
       ) : (
         <div>
-          {/* Dynamic Spectrum Curve Chart */}
+          {/* Laser-Sharp Dynamic Spectrum Display */}
           <div
             style={{
               position: 'relative',
               width: '100%',
-              height: '150px',
-              background: '#ffffff',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
+              height: '145px',
+              background: 'radial-gradient(ellipse at 50% 120%, rgba(37, 99, 235, 0.12) 0%, #050508 70%)',
+              borderRadius: '14px',
+              border: '1px solid var(--border-subtle)',
               overflow: 'hidden',
+              boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.8)',
             }}
           >
             <svg
@@ -113,21 +179,20 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
               style={{ width: '100%', height: '100%', display: 'block' }}
             >
               <defs>
-                {/* Visual spectrum gradient for wavelength backdrop */}
                 <linearGradient id="spectrumGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.45" />    {/* UV 390-415 */}
-                  <stop offset="25%" stopColor="#2563eb" stopOpacity="0.5" />   {/* Royal Blue 450 */}
-                  <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.35" />  {/* Cyan 490 */}
-                  <stop offset="75%" stopColor="#10b981" stopOpacity="0.25" />  {/* Green 530 */}
-                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.2" />  {/* Warm phosphor */}
+                  <stop offset="0%" stopColor="#a855f7" stopOpacity="0.45" />
+                  <stop offset="22%" stopColor="#3b82f6" stopOpacity="0.5" />
+                  <stop offset="48%" stopColor="#06b6d4" stopOpacity="0.35" />
+                  <stop offset="72%" stopColor="#10b981" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.2" />
                 </linearGradient>
 
                 <linearGradient id="curveStrokeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#7c3aed" />
-                  <stop offset="25%" stopColor="#2563eb" />
-                  <stop offset="50%" stopColor="#0284c7" />
-                  <stop offset="75%" stopColor="#059669" />
-                  <stop offset="100%" stopColor="#d97706" />
+                  <stop offset="0%" stopColor="#c084fc" />
+                  <stop offset="22%" stopColor="#60a5fa" />
+                  <stop offset="48%" stopColor="#38bdf8" />
+                  <stop offset="72%" stopColor="#34d399" />
+                  <stop offset="100%" stopColor="#fbbf24" />
                 </linearGradient>
               </defs>
 
@@ -141,9 +206,9 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
                     y1="0"
                     x2={x}
                     y2={height}
-                    stroke="#f1f5f9"
-                    strokeWidth="1.5"
-                    strokeDasharray="3 3"
+                    stroke="rgba(255, 255, 255, 0.05)"
+                    strokeWidth="1"
+                    strokeDasharray="2 3"
                   />
                 );
               })}
@@ -152,35 +217,50 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
               <path d={areaD} fill="url(#spectrumGradient)" />
 
               {/* Primary Spectral Distribution Curve */}
-              <path d={pathD} fill="none" stroke="url(#curveStrokeGradient)" strokeWidth="3" strokeLinecap="round" />
+              <path
+                d={pathD}
+                fill="none"
+                stroke="url(#curveStrokeGradient)"
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                style={{ filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.5))' }}
+              />
             </svg>
           </div>
 
-          {/* Spectrum Color Band & Nanometer Markers */}
-          <div style={{ marginTop: '0.5rem' }}>
+          {/* Glowing Wavelength Band & Minimal Labels */}
+          <div style={{ marginTop: '0.65rem' }}>
             <div
               style={{
-                height: '8px',
-                borderRadius: '4px',
-                background: 'linear-gradient(to right, #7c3aed 0%, #2563eb 25%, #06b6d4 50%, #10b981 75%, #f59e0b 100%)',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
+                height: '5px',
+                borderRadius: 'var(--radius-full)',
+                background: 'linear-gradient(to right, #a855f7 0%, #3b82f6 24%, #06b6d4 48%, #10b981 72%, #f59e0b 100%)',
+                opacity: 0.85,
               }}
             />
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                fontSize: '0.7rem',
+                fontSize: '0.68rem',
                 fontWeight: 600,
-                color: '#64748b',
-                marginTop: '0.35rem',
+                marginTop: '0.4rem',
                 padding: '0 2px',
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
-              <span style={{ color: '#7c3aed' }}>405nm (UV - 2 LEDs)</span>
-              <span style={{ color: '#2563eb' }}>450nm (Royal Blue - 10 LEDs)</span>
-              <span style={{ color: '#059669' }}>550-650nm (Day White - 4 LEDs)</span>
+              <span style={{ color: '#c084fc', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#a855f7' }} />
+                405nm UV
+              </span>
+              <span style={{ color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#3b82f6' }} />
+                450nm Royal Blue
+              </span>
+              <span style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#38bdf8' }} />
+                6500K Daylight
+              </span>
             </div>
           </div>
         </div>

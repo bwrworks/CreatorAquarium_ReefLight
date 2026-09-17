@@ -12,8 +12,8 @@ import {
   Clock,
   Play,
   Check,
-  Layers,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 
 const defaultSchedules: Schedule[] = [
@@ -230,13 +230,13 @@ export default function SchedulesPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Schedule Selector Header */}
-      <div className="card-surface" style={{ padding: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+      <div className="card-surface" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#09090b', letterSpacing: '-0.02em' }}>
-              Schedule Curve Editor
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              Photoperiod Schedules
             </h2>
-            <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
               24-hour linear keyframe interpolation
             </p>
           </div>
@@ -245,18 +245,18 @@ export default function SchedulesPage() {
               onClick={handleDuplicateSchedule}
               className="btn-secondary"
               title="Duplicate Schedule"
-              style={{ padding: '0.45rem' }}
+              style={{ padding: '0.45rem 0.65rem' }}
             >
-              <Copy size={15} />
+              <Copy size={14} />
             </button>
             {schedules.length > 1 && (
               <button
                 onClick={handleDeleteSchedule}
                 className="btn-secondary"
                 title="Delete Schedule"
-                style={{ padding: '0.45rem', color: '#dc2626' }}
+                style={{ padding: '0.45rem 0.65rem', color: '#f43f5e' }}
               >
-                <Trash2 size={15} />
+                <Trash2 size={14} />
               </button>
             )}
           </div>
@@ -268,11 +268,10 @@ export default function SchedulesPage() {
             <button
               key={s.id}
               onClick={() => setActiveScheduleId(s.id)}
-              className={`btn-secondary ${s.id === activeScheduleId ? 'active' : ''}`}
+              className={`btn-pill ${s.id === activeScheduleId ? 'active' : ''}`}
               style={{
-                fontSize: '0.78rem',
+                fontSize: '0.76rem',
                 whiteSpace: 'nowrap',
-                padding: '0.4rem 0.8rem',
               }}
             >
               {s.name}
@@ -282,16 +281,16 @@ export default function SchedulesPage() {
       </div>
 
       {/* 24-Hour Multi-Channel Curve Chart */}
-      <div className="card-surface" style={{ padding: '1.15rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+      <div className="card-surface" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            <Clock size={16} color="#0284c7" />
-            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#09090b' }}>24-Hour Photoperiod</span>
+            <Clock size={16} color="#38bdf8" />
+            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>24-Hour Photoperiod</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.72rem', fontWeight: 700 }}>
-            <span style={{ color: 'var(--channel-blue)' }}>Blue (10x)</span>
-            <span style={{ color: 'var(--channel-white)' }}>White (4x)</span>
-            <span style={{ color: 'var(--channel-uv)' }}>UV (2x)</span>
+          <div style={{ display: 'flex', gap: '0.65rem', fontSize: '0.7rem', fontWeight: 700 }}>
+            <span style={{ color: '#60a5fa' }}>Blue (10x)</span>
+            <span style={{ color: '#38bdf8' }}>White (4x)</span>
+            <span style={{ color: '#c084fc' }}>UV (2x)</span>
           </div>
         </div>
 
@@ -300,9 +299,9 @@ export default function SchedulesPage() {
           style={{
             width: '100%',
             height: '180px',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
+            background: '#050508',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '12px',
             overflow: 'hidden',
           }}
         >
@@ -319,16 +318,35 @@ export default function SchedulesPage() {
                 y1="0"
                 x2={(hour / 24) * 1000}
                 y2="180"
-                stroke="#f1f5f9"
-                strokeWidth="1.5"
+                stroke="rgba(255, 255, 255, 0.05)"
+                strokeWidth="1"
                 strokeDasharray="4 4"
               />
             ))}
 
             {/* Curves */}
-            <path d={curvePaths.blue} fill="none" stroke="var(--channel-blue)" strokeWidth="3" />
-            <path d={curvePaths.white} fill="none" stroke="var(--channel-white)" strokeWidth="2.5" strokeDasharray="3 2" />
-            <path d={curvePaths.uv} fill="none" stroke="var(--channel-uv)" strokeWidth="3" />
+            <path
+              d={curvePaths.blue}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth="2.5"
+              style={{ filter: 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.6))' }}
+            />
+            <path
+              d={curvePaths.white}
+              fill="none"
+              stroke="#38bdf8"
+              strokeWidth="2.2"
+              strokeDasharray="4 3"
+              style={{ filter: 'drop-shadow(0 0 5px rgba(56, 189, 248, 0.6))' }}
+            />
+            <path
+              d={curvePaths.uv}
+              fill="none"
+              stroke="#a855f7"
+              strokeWidth="2.5"
+              style={{ filter: 'drop-shadow(0 0 6px rgba(168, 85, 247, 0.6))' }}
+            />
 
             {/* Keyframe Nodes */}
             {activeSchedule.keyframes.map((kf, i) => {
@@ -340,7 +358,7 @@ export default function SchedulesPage() {
                   cx={x}
                   cy={y}
                   r="5"
-                  fill="var(--channel-blue)"
+                  fill="#3b82f6"
                   stroke="#ffffff"
                   strokeWidth="2"
                 />
@@ -353,17 +371,21 @@ export default function SchedulesPage() {
               y1="0"
               x2={(scrubberSec / 86400) * 1000}
               y2="180"
-              stroke="#09090b"
+              stroke="#ffffff"
               strokeWidth="2"
+              strokeDasharray="2 2"
+              style={{ filter: 'drop-shadow(0 0 4px rgba(255, 255, 255, 0.8))' }}
             />
           </svg>
         </div>
 
         {/* Scrubber Slider */}
-        <div style={{ marginTop: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-            <span style={{ fontSize: '0.76rem', color: '#64748b' }}>Inspection Cursor:</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#09090b' }}>{secToTime(scrubberSec)}</span>
+        <div style={{ marginTop: '0.85rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Timeline Position:</span>
+            <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+              {secToTime(scrubberSec)}
+            </span>
           </div>
           <input
             type="range"
@@ -372,7 +394,7 @@ export default function SchedulesPage() {
             step="60"
             value={scrubberSec}
             onChange={(e) => setScrubberSec(Number(e.target.value))}
-            className="range-slider"
+            className="apple-range-input"
             style={{ width: '100%' }}
           />
         </div>
@@ -386,45 +408,45 @@ export default function SchedulesPage() {
             marginTop: '0.85rem',
           }}
         >
-          <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-blue-bg)', border: '1px solid var(--channel-blue-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-blue)' }}>BLUE (10x)</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-blue)' }}>{scrubberValues.blue}%</div>
+          <div style={{ textAlign: 'center', padding: '0.55rem', borderRadius: 'var(--radius-sm)', background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#60a5fa' }}>BLUE (10x)</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{scrubberValues.blue}%</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-white-bg)', border: '1px solid var(--channel-white-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-white)' }}>WHITE (4x)</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-white)' }}>{scrubberValues.white}%</div>
+          <div style={{ textAlign: 'center', padding: '0.55rem', borderRadius: 'var(--radius-sm)', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#38bdf8' }}>WHITE (4x)</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{scrubberValues.white}%</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-uv-bg)', border: '1px solid var(--channel-uv-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-uv)' }}>UV (2x)</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-uv)' }}>{scrubberValues.uv}%</div>
+          <div style={{ textAlign: 'center', padding: '0.55rem', borderRadius: 'var(--radius-sm)', background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#c084fc' }}>UV (2x)</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{scrubberValues.uv}%</div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.85rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem' }}>
           <button
             onClick={handlePreviewScrubberOnFixture}
             className="btn-secondary"
             id="preview-fixture-btn"
-            style={{ flex: 1, fontSize: '0.8rem' }}
+            style={{ flex: 1, fontSize: '0.78rem' }}
           >
-            <Play size={13} color="#0284c7" />
-            {previewActive ? 'Testing Live...' : 'Preview Point on Light'}
+            <Play size={13} color="#38bdf8" />
+            {previewActive ? 'Emitting...' : 'Preview Point'}
           </button>
 
           <button
             onClick={handleSaveToDevice}
             className="btn-primary"
             id="save-schedule-btn"
-            style={{ flex: 1, fontSize: '0.8rem' }}
+            style={{ flex: 1, fontSize: '0.78rem' }}
           >
             {savedSuccess ? (
               <>
-                <Check size={15} /> Saved to ESP32 Flash
+                <Check size={14} /> Synced to ESP32
               </>
             ) : (
               <>
-                <Save size={15} /> Save to ESP32
+                <Save size={14} /> Push to ESP32
               </>
             )}
           </button>
@@ -438,16 +460,16 @@ export default function SchedulesPage() {
       />
 
       {/* Keyframe Table & Editor */}
-      <div className="card-surface" style={{ padding: '1.15rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h3 style={{ fontSize: '0.84rem', fontWeight: 700, color: '#09090b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      <div className="card-surface" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <h3 style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Keyframes ({activeSchedule.keyframes.length})
           </h3>
           <button
             onClick={() => setShowAddKf(!showAddKf)}
-            className="btn-secondary"
+            className="btn-pill"
             id="add-keyframe-btn"
-            style={{ padding: '0.35rem 0.75rem', fontSize: '0.76rem' }}
+            style={{ padding: '0.35rem 0.75rem', fontSize: '0.74rem' }}
           >
             <Plus size={13} /> Add Point
           </button>
@@ -459,34 +481,27 @@ export default function SchedulesPage() {
             onSubmit={handleAddKeyframe}
             style={{
               padding: '1rem',
-              background: '#f8fafc',
-              borderRadius: '8px',
-              border: '1px solid #e2e8f0',
+              background: 'rgba(255, 255, 255, 0.04)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-subtle)',
               marginBottom: '0.85rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.75rem',
+              gap: '0.85rem',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#09090b' }}>Time of Day</span>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>Time of Day</span>
               <input
                 type="time"
                 value={newKfTime}
                 onChange={(e) => setNewKfTime(e.target.value)}
                 required
-                style={{
-                  padding: '0.35rem 0.65rem',
-                  background: '#ffffff',
-                  color: '#09090b',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                }}
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.2rem' }}>
-              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748b' }}>Channel Intensities</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)' }}>Channel Values</span>
               <button
                 type="button"
                 onClick={() => {
@@ -494,69 +509,67 @@ export default function SchedulesPage() {
                   setNewKfWhite(Math.round(deviceState.live.white));
                   setNewKfUv(Math.round(deviceState.live.uv));
                 }}
-                className="btn-secondary"
+                className="btn-pill"
                 style={{
-                  padding: '0.25rem 0.6rem',
-                  fontSize: '0.72rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  background: '#f0fdf4',
-                  color: '#166534',
-                  border: '1px solid #bbf7d0',
-                  fontWeight: 600,
-                  cursor: 'pointer',
+                  fontSize: '0.7rem',
+                  padding: '0.2rem 0.55rem',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  color: '#10b981',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
                 }}
               >
-                <Sparkles size={12} color="#16a34a" /> Use Live Light Mix ({Math.round(deviceState.live.blue)}% / {Math.round(deviceState.live.white)}% / {Math.round(deviceState.live.uv)}%)
+                <Sparkles size={11} /> Use Live Light Mix
               </button>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
               <div>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--channel-blue)' }}>Blue: {newKfBlue}%</label>
+                <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#60a5fa' }}>Blue: {newKfBlue}%</label>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={newKfBlue}
                   onChange={(e) => setNewKfBlue(Number(e.target.value))}
-                  className="range-slider"
+                  className="apple-range-input"
+                  style={{ height: '22px' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--channel-white)' }}>White: {newKfWhite}%</label>
+                <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#38bdf8' }}>White: {newKfWhite}%</label>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={newKfWhite}
                   onChange={(e) => setNewKfWhite(Number(e.target.value))}
-                  className="range-slider"
+                  className="apple-range-input"
+                  style={{ height: '22px' }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--channel-uv)' }}>UV: {newKfUv}%</label>
+                <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#c084fc' }}>UV: {newKfUv}%</label>
                 <input
                   type="range"
                   min="0"
                   max="100"
                   value={newKfUv}
                   onChange={(e) => setNewKfUv(Number(e.target.value))}
-                  className="range-slider"
+                  className="apple-range-input"
+                  style={{ height: '22px' }}
                 />
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
-              <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.5rem' }}>
+              <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.55rem' }}>
                 Insert Point
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddKf(false)}
                 className="btn-secondary"
-                style={{ flex: 1, padding: '0.5rem' }}
+                style={{ flex: 1, padding: '0.55rem' }}
               >
                 Cancel
               </button>
@@ -565,17 +578,28 @@ export default function SchedulesPage() {
         )}
 
         {/* Keyframe Rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
           {activeSchedule.keyframes.map((kf) => (
-            <div key={kf.time} className="keyframe-row">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#09090b', width: '48px' }}>
+            <div
+              key={kf.time}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.7rem 0.95rem',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', width: '48px', fontVariantNumeric: 'tabular-nums' }}>
                   {kf.time}
                 </span>
-                <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>
-                  <span style={{ color: 'var(--channel-blue)' }}>B:{kf.blue}%</span>
-                  <span style={{ color: 'var(--channel-white)' }}>W:{kf.white}%</span>
-                  <span style={{ color: 'var(--channel-uv)' }}>UV:{kf.uv}%</span>
+                <div style={{ display: 'flex', gap: '0.65rem', fontSize: '0.75rem', fontWeight: 600 }}>
+                  <span style={{ color: '#60a5fa' }}>B:{kf.blue}%</span>
+                  <span style={{ color: '#38bdf8' }}>W:{kf.white}%</span>
+                  <span style={{ color: '#c084fc' }}>UV:{kf.uv}%</span>
                 </div>
               </div>
 
@@ -585,7 +609,7 @@ export default function SchedulesPage() {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#94a3b8',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     padding: '0.25rem',
                   }}

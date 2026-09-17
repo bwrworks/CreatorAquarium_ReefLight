@@ -108,12 +108,12 @@ export default function WeeklyPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header Card */}
-      <div className="card-surface" style={{ padding: '1.15rem' }}>
-        <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#09090b', letterSpacing: '-0.02em' }}>
+      <div className="card-surface" style={{ padding: '1.25rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
           Weekly Schedule Routing
         </h2>
-        <p style={{ fontSize: '0.78rem', color: '#64748b' }}>
-          Assign an autonomous lighting profile to each day of the week
+        <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+          Assign an autonomous photoperiod profile to each day of the week
         </p>
       </div>
 
@@ -122,21 +122,21 @@ export default function WeeklyPage() {
         <button
           onClick={() => applyPresetAll('natural_reef')}
           className="btn-secondary"
-          style={{ fontSize: '0.75rem', padding: '0.55rem' }}
+          style={{ fontSize: '0.76rem', padding: '0.65rem' }}
         >
-          <Sparkles size={14} color="#0284c7" /> All Days: Daylight
+          <Sparkles size={14} color="#38bdf8" /> All Days: Daylight
         </button>
         <button
           onClick={() => applyWeekdayWeekend('natural_reef', 'deep_coral_pop')}
           className="btn-secondary"
-          style={{ fontSize: '0.75rem', padding: '0.55rem' }}
+          style={{ fontSize: '0.76rem', padding: '0.65rem' }}
         >
-          <Layers size={14} color="#7c3aed" /> Weekday / Weekend
+          <Layers size={14} color="#a855f7" /> Weekday / Weekend
         </button>
       </div>
 
       {/* 7-Day Grid */}
-      <div className="card-surface" style={{ padding: '1.15rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+      <div className="card-surface" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
         {days.map((day) => {
           const isToday = day.key === todayKey;
           return (
@@ -146,36 +146,37 @@ export default function WeeklyPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '0.7rem 0.85rem',
-                borderRadius: '8px',
-                background: isToday ? '#f0f9ff' : '#ffffff',
-                border: isToday ? '1px solid #bae6fd' : '1px solid #e2e8f0',
+                padding: '0.75rem 0.95rem',
+                borderRadius: 'var(--radius-md)',
+                background: isToday ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                border: isToday ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid var(--border-subtle)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <div
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: isToday ? '#0284c7' : '#f1f5f9',
-                    color: isToday ? '#ffffff' : '#09090b',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: isToday ? '#ffffff' : 'rgba(255, 255, 255, 0.06)',
+                    color: isToday ? '#000000' : 'var(--text-secondary)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 800,
-                    fontSize: '0.76rem',
+                    fontSize: '0.74rem',
+                    letterSpacing: '0.04em',
                   }}
                 >
                   {day.label}
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#09090b' }}>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {day.full}
                   </div>
                   {isToday && (
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#0284c7' }}>
-                      CURRENT DAY
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8' }}>
+                      TODAY
                     </div>
                   )}
                 </div>
@@ -185,19 +186,12 @@ export default function WeeklyPage() {
                 value={weekly[day.key]}
                 onChange={(e) => handleDayChange(day.key, e.target.value)}
                 style={{
-                  background: '#ffffff',
-                  color: '#09090b',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: '6px',
-                  padding: '0.45rem 0.65rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  outline: 'none',
-                  maxWidth: '175px',
+                  maxWidth: '185px',
+                  fontSize: '0.78rem',
                 }}
               >
                 {availableSchedules.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <option key={s.id} value={s.id} style={{ background: '#121215', color: '#ffffff' }}>
                     {s.name}
                   </option>
                 ))}

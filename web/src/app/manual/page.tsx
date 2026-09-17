@@ -12,14 +12,13 @@ import {
   Fan,
   PowerOff,
   Search,
-  Check,
   CalendarPlus,
   BookmarkPlus,
-  Clock,
   Trash2,
   X,
   Layers,
   CheckCircle2,
+  Sliders,
 } from 'lucide-react';
 import { Channels, Schedule, Keyframe } from '../../lib/types';
 
@@ -122,7 +121,7 @@ export default function ManualPage() {
     }
   }, []);
 
-  // Sync from device only when not actively interacting or when mode reverts to auto
+  // Sync from device only when not actively interacting
   useEffect(() => {
     if (!isInteractingRef.current || (prevModeRef.current === 'manual' && deviceState.mode === 'auto')) {
       setChannels({
@@ -179,7 +178,6 @@ export default function ManualPage() {
   };
 
   const handleOpenSaveModal = () => {
-    // Default time to device current time if available, or local time
     if (deviceState.time) {
       try {
         const d = new Date(deviceState.time);
@@ -215,7 +213,6 @@ export default function ManualPage() {
       uv: Math.round(channels.uv),
     };
 
-    // Filter out duplicate at same time, then insert and sort
     const updatedKeyframes = [
       ...targetSchedule.keyframes.filter((k) => k.time !== scheduleTime),
       newKeyframe,
@@ -233,14 +230,13 @@ export default function ManualPage() {
       localStorage.setItem('reef_schedules', JSON.stringify(updatedList));
     }
 
-    // Immediately sync the updated schedule to ESP32 Flash memory over MQTT
     publishSchedule(updatedSchedule);
 
-    setStatusMessage(`Added point at ${scheduleTime} (B:${newKeyframe.blue}%, W:${newKeyframe.white}%, UV:${newKeyframe.uv}%) to "${targetSchedule.name}" and synced to ESP32!`);
+    setStatusMessage(`Saved point at ${scheduleTime} to "${targetSchedule.name}" and synced to ESP32!`);
     setTimeout(() => {
       setShowSaveModal(false);
       setStatusMessage(null);
-    }, 2000);
+    }, 1800);
   };
 
   const handleSaveCustomPreset = (e: React.FormEvent) => {
@@ -264,7 +260,7 @@ export default function ManualPage() {
     }
 
     setCustomPresetName('');
-    setStatusMessage(`Saved profile "${name}" to Quick Lighting Profiles!`);
+    setStatusMessage(`Saved "${name}" to Quick Profiles!`);
     setTimeout(() => {
       setShowSaveModal(false);
       setStatusMessage(null);
@@ -280,13 +276,15 @@ export default function ManualPage() {
     }
   };
 
+  const isManual = deviceState.mode === 'manual';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* Header Card */}
+      {/* Header Bar */}
       <div
         className="card-surface"
         style={{
-          padding: '1.15rem',
+          padding: '1.15rem 1.25rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -295,147 +293,78 @@ export default function ManualPage() {
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#09090b', letterSpacing: '-0.02em' }}>
-              Manual Fixture Control
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              Manual Controls
             </h2>
             <span
               style={{
-                fontSize: '0.72rem',
+                fontSize: '0.7rem',
                 fontWeight: 700,
-                padding: '0.2rem 0.55rem',
-                borderRadius: '6px',
-                background: deviceState.mode === 'manual' ? '#fef3c7' : '#e0f2fe',
-                color: deviceState.mode === 'manual' ? '#b45309' : '#0369a1',
-                border: `1px solid ${deviceState.mode === 'manual' ? '#fde68a' : '#bae6fd'}`,
+                padding: '0.2rem 0.6rem',
+                borderRadius: 'var(--radius-full)',
+                background: isManual ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.12)',
+                color: isManual ? '#f59e0b' : '#38bdf8',
+                border: `1px solid ${isManual ? 'rgba(245, 158, 11, 0.3)' : 'rgba(56, 189, 248, 0.25)'}`,
               }}
             >
-              {deviceState.mode === 'manual' ? '● Manual Override' : '● Auto Schedule'}
+              {isManual ? '15m Override Hold' : 'Schedule Active'}
             </span>
           </div>
-          <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.2rem' }}>
-            {deviceState.mode === 'manual'
-              ? 'Direct PWM active • Levels hold for 15 minutes before schedule automatically resumes'
-              : 'Direct PWM control • Move any slider or select a profile to enter manual mode'}
+          <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {isManual
+              ? 'Tactile overrides active • Auto schedule resumes automatically after 15m'
+              : 'Direct tactile PWM control • Adjust any slider to take over'}
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap' }}>
           <button
             onClick={handleOpenSaveModal}
-            className="btn-secondary"
+            className="btn-pill"
             id="save-to-schedule-btn"
             style={{
-              fontSize: '0.78rem',
-              padding: '0.5rem 0.95rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              background: '#f0fdf4',
-              color: '#166534',
-              border: '1px solid #bbf7d0',
-              fontWeight: 700,
-              cursor: 'pointer',
+              background: 'rgba(16, 185, 129, 0.12)',
+              color: '#10b981',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
             }}
           >
-            <CalendarPlus size={14} color="#16a34a" /> Save to Schedule / Presets
+            <CalendarPlus size={13} /> Save Levels
           </button>
 
-          <button
-            onClick={handleRevertAuto}
-            className="btn-secondary"
-            id="revert-auto-btn"
-            style={{
-              fontSize: '0.78rem',
-              padding: '0.5rem 0.95rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              background: deviceState.mode === 'manual' ? '#0284c7' : '#ffffff',
-              color: deviceState.mode === 'manual' ? '#ffffff' : '#475569',
-              border: deviceState.mode === 'manual' ? '1px solid #0284c7' : '1px solid #cbd5e1',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: deviceState.mode === 'manual' ? '0 2px 6px rgba(2, 132, 199, 0.3)' : 'none',
-            }}
-          >
-            <RotateCcw size={14} /> Resume Auto Schedule
-          </button>
+          {isManual && (
+            <button
+              onClick={handleRevertAuto}
+              className="btn-pill"
+              id="revert-auto-btn"
+              style={{
+                background: '#ffffff',
+                color: '#000000',
+                border: 'none',
+                fontWeight: 800,
+              }}
+            >
+              <RotateCcw size={13} /> Resume Auto
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Manual Override Status Banner */}
-      {deviceState.mode === 'manual' && (
-        <div
-          className="card-surface"
-          style={{
-            borderColor: '#fde68a',
-            background: '#fffbeb',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.8rem 1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
-            <RotateCcw size={16} color="#d97706" />
-            <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e' }}>
-                Manual Override Active
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#b45309' }}>
-                Fixture is holding these slider values. Auto schedule resumes after 15 minutes of inactivity.
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
-            <button
-              onClick={handleOpenSaveModal}
-              className="btn-secondary"
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.35rem 0.75rem',
-                background: '#ffffff',
-                color: '#166534',
-                border: '1px solid #bbf7d0',
-                fontWeight: 700,
-              }}
-            >
-              <CalendarPlus size={13} /> Save Levels
-            </button>
-            <button
-              onClick={handleRevertAuto}
-              className="btn-secondary"
-              style={{
-                fontSize: '0.75rem',
-                padding: '0.35rem 0.75rem',
-                background: '#0284c7',
-                color: '#ffffff',
-                border: 'none',
-                fontWeight: 700,
-              }}
-            >
-              Resume Auto
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Resulting Light Spectrum Visualizer (Top Placement for Instant Visual Feedback) */}
+      <SpectrumVisualizer channels={channels} title="Live Light Spectrum" />
 
-      {/* Live Resulting Light Spectrum Visualizer (Top Position for Immediate Feedback) */}
-      <SpectrumVisualizer channels={channels} title="Resulting Light Spectrum (Live Mix)" />
-
-      {/* Quick Lighting Profiles (Built-in + Custom Saved Presets) */}
+      {/* Quick Lighting Profiles (Apple Segmented Grid) */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-            Quick Lighting Profiles
-          </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', padding: '0 0.2rem' }}>
+          <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+            Quick Profiles
+          </span>
           <button
             onClick={handleOpenSaveModal}
             style={{
               background: 'none',
               border: 'none',
-              color: '#0284c7',
+              color: '#38bdf8',
               fontSize: '0.72rem',
               fontWeight: 700,
               cursor: 'pointer',
@@ -444,11 +373,11 @@ export default function ManualPage() {
               gap: '0.25rem',
             }}
           >
-            <BookmarkPlus size={13} /> + Save Current as Preset
+            <BookmarkPlus size={13} /> + Save Custom
           </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.6rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(105px, 1fr))', gap: '0.6rem' }}>
           {/* Custom Presets Saved by User */}
           {customPresets.map((preset) => (
             <div
@@ -456,24 +385,22 @@ export default function ManualPage() {
               onClick={() => applyPreset(preset.id, preset.channels, preset.fan)}
               className={`btn-secondary ${activePreset === preset.id ? 'active' : ''}`}
               style={{
-                padding: '0.65rem 0.4rem',
+                padding: '0.65rem 0.5rem',
                 flexDirection: 'column',
-                gap: '0.35rem',
-                cursor: 'pointer',
+                gap: '0.3rem',
                 position: 'relative',
-                border: activePreset === preset.id ? '2px solid #0284c7' : '1px solid #e0e7ff',
-                background: activePreset === preset.id ? '#0284c7' : '#f8faff',
+                borderRadius: 'var(--radius-md)',
               }}
             >
               <button
                 onClick={(e) => handleDeleteCustomPreset(preset.id, e)}
                 style={{
                   position: 'absolute',
-                  top: '3px',
-                  right: '3px',
+                  top: '4px',
+                  right: '4px',
                   background: 'none',
                   border: 'none',
-                  color: activePreset === preset.id ? '#ffffff' : '#94a3b8',
+                  color: activePreset === preset.id ? '#000000' : 'var(--text-muted)',
                   cursor: 'pointer',
                   padding: '2px',
                 }}
@@ -481,196 +408,218 @@ export default function ManualPage() {
               >
                 <Trash2 size={11} />
               </button>
-              <BookmarkPlus size={16} color={activePreset === preset.id ? '#ffffff' : '#4f46e5'} />
-              <span style={{ fontSize: '0.74rem', fontWeight: 700, textAlign: 'center', wordBreak: 'break-word', maxWidth: '90px' }}>
+              <BookmarkPlus size={16} color={activePreset === preset.id ? '#000000' : '#818cf8'} />
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, textAlign: 'center', maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {preset.name}
               </span>
-              <span style={{ fontSize: '0.62rem', opacity: 0.85 }}>
+              <span style={{ fontSize: '0.62rem', opacity: 0.75 }}>
                 B:{preset.channels.blue}% W:{preset.channels.white}%
               </span>
             </div>
           ))}
 
-          {/* Standard Presets */}
+          {/* Built-in Presets */}
           <button
             onClick={() => applyPreset('coral', { blue: 100, white: 5, uv: 100 }, 50)}
             className={`btn-secondary ${activePreset === 'coral' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <Sparkles size={17} color={activePreset === 'coral' ? '#ffffff' : '#7c3aed'} />
-            <span style={{ fontSize: '0.74rem' }}>Coral Pop</span>
+            <Sparkles size={16} color={activePreset === 'coral' ? '#000000' : '#c084fc'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Coral Pop</span>
           </button>
 
           <button
             onClick={() => applyPreset('daylight', { blue: 80, white: 70, uv: 50 }, 55)}
             className={`btn-secondary ${activePreset === 'daylight' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <Sun size={17} color={activePreset === 'daylight' ? '#ffffff' : '#0284c7'} />
-            <span style={{ fontSize: '0.74rem' }}>Daylight</span>
+            <Sun size={16} color={activePreset === 'daylight' ? '#000000' : '#38bdf8'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Daylight</span>
           </button>
 
           <button
             onClick={() => applyPreset('sunset', { blue: 50, white: 35, uv: 20 }, 40)}
             className={`btn-secondary ${activePreset === 'sunset' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <Flame size={17} color={activePreset === 'sunset' ? '#ffffff' : '#f59e0b'} />
-            <span style={{ fontSize: '0.74rem' }}>Warm Dusk</span>
+            <Flame size={16} color={activePreset === 'sunset' ? '#000000' : '#fbbf24'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Warm Dusk</span>
           </button>
 
           <button
             onClick={() => applyPreset('moon', { blue: 6, white: 0, uv: 0 }, 20)}
             className={`btn-secondary ${activePreset === 'moon' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <Moon size={17} color={activePreset === 'moon' ? '#ffffff' : '#2563eb'} />
-            <span style={{ fontSize: '0.74rem' }}>Moonlight</span>
+            <Moon size={16} color={activePreset === 'moon' ? '#000000' : '#60a5fa'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Moonlight</span>
           </button>
 
           <button
             onClick={() => applyPreset('inspect', { blue: 100, white: 100, uv: 100 }, 75)}
             className={`btn-secondary ${activePreset === 'inspect' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <Search size={17} color={activePreset === 'inspect' ? '#ffffff' : '#09090b'} />
-            <span style={{ fontSize: '0.74rem' }}>Inspection</span>
+            <Search size={16} color={activePreset === 'inspect' ? '#000000' : '#f4f4f6'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Inspection</span>
           </button>
 
           <button
             onClick={() => applyPreset('off', { blue: 0, white: 0, uv: 0 }, 0)}
             className={`btn-secondary ${activePreset === 'off' ? 'active' : ''}`}
-            style={{ padding: '0.65rem 0.4rem', flexDirection: 'column', gap: '0.35rem' }}
+            style={{ padding: '0.65rem 0.5rem', flexDirection: 'column', gap: '0.3rem', borderRadius: 'var(--radius-md)' }}
           >
-            <PowerOff size={17} color={activePreset === 'off' ? '#ffffff' : '#64748b'} />
-            <span style={{ fontSize: '0.74rem' }}>Lights Off</span>
+            <PowerOff size={16} color={activePreset === 'off' ? '#000000' : 'var(--text-muted)'} />
+            <span style={{ fontSize: '0.74rem', fontWeight: 700 }}>Lights Off</span>
           </button>
         </div>
       </div>
 
-      {/* 3 LED Channel Sliders */}
-      <div className="card-surface" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>
-            Individual Color Channels
-          </h3>
-          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-            GPIO 18, 19, 32, 33
-          </span>
-        </div>
-
-        {/* Blue Slider */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--channel-blue)' }}>
-              Royal Blue (450nm) — 10 LEDs
-            </span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--channel-blue)', background: 'var(--channel-blue-bg)', border: '1px solid var(--channel-blue-border)', padding: '0.15rem 0.55rem', borderRadius: '6px' }}>
+      {/* Tactile Apple Control Center Sliders */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        {/* Royal Blue Slider */}
+        <div className="apple-slider-card">
+          <div className="apple-slider-header">
+            <div className="apple-slider-title">
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+              <span>Royal Blue (450nm)</span>
+            </div>
+            <span
+              className="apple-slider-badge"
+              style={{
+                color: '#60a5fa',
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+              }}
+            >
               {Math.round(channels.blue)}%
             </span>
           </div>
-          <input type="range" min="0" max="100" value={channels.blue}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={channels.blue}
             onChange={(e) => handleSliderChange('blue', Number(e.target.value))}
-            className="range-slider" id="slider-blue" />
+            className="apple-range-input"
+            id="slider-blue"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${channels.blue}%, rgba(255, 255, 255, 0.08) ${channels.blue}%, rgba(255, 255, 255, 0.08) 100%)`,
+            }}
+          />
         </div>
 
-        {/* White Slider */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--channel-white)' }}>
-              Day White (6500K) — 4 LEDs
-            </span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--channel-white)', background: 'var(--channel-white-bg)', border: '1px solid var(--channel-white-border)', padding: '0.15rem 0.55rem', borderRadius: '6px' }}>
+        {/* Day White Slider */}
+        <div className="apple-slider-card">
+          <div className="apple-slider-header">
+            <div className="apple-slider-title">
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
+              <span>Day White (6500K)</span>
+            </div>
+            <span
+              className="apple-slider-badge"
+              style={{
+                color: '#38bdf8',
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+              }}
+            >
               {Math.round(channels.white)}%
             </span>
           </div>
-          <input type="range" min="0" max="100" value={channels.white}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={channels.white}
             onChange={(e) => handleSliderChange('white', Number(e.target.value))}
-            className="range-slider" id="slider-white" />
+            className="apple-range-input"
+            id="slider-white"
+            style={{
+              background: `linear-gradient(to right, #38bdf8 0%, #38bdf8 ${channels.white}%, rgba(255, 255, 255, 0.08) ${channels.white}%, rgba(255, 255, 255, 0.08) 100%)`,
+            }}
+          />
         </div>
 
-        {/* UV Slider */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--channel-uv)' }}>
-              Actinic UV (405nm) — 2 LEDs
-            </span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--channel-uv)', background: 'var(--channel-uv-bg)', border: '1px solid var(--channel-uv-border)', padding: '0.15rem 0.55rem', borderRadius: '6px' }}>
+        {/* Actinic UV Slider */}
+        <div className="apple-slider-card">
+          <div className="apple-slider-header">
+            <div className="apple-slider-title">
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }} />
+              <span>Actinic UV (405nm)</span>
+            </div>
+            <span
+              className="apple-slider-badge"
+              style={{
+                color: '#c084fc',
+                background: 'rgba(168, 85, 247, 0.15)',
+                border: '1px solid rgba(168, 85, 247, 0.3)',
+              }}
+            >
               {Math.round(channels.uv)}%
             </span>
           </div>
-          <input type="range" min="0" max="100" value={channels.uv}
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={channels.uv}
             onChange={(e) => handleSliderChange('uv', Number(e.target.value))}
-            className="range-slider" id="slider-uv" />
-        </div>
-
-        {/* Quick Schedule Save CTA right under sliders */}
-        <button
-          onClick={handleOpenSaveModal}
-          className="btn-secondary"
-          style={{
-            marginTop: '0.2rem',
-            padding: '0.65rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.45rem',
-            fontSize: '0.8rem',
-            background: '#f8fafc',
-            border: '1px dashed #cbd5e1',
-            color: '#0369a1',
-            fontWeight: 700,
-          }}
-        >
-          <CalendarPlus size={15} color="#0284c7" />
-          Save These Manual Settings ({Math.round(channels.blue)}% / {Math.round(channels.white)}% / {Math.round(channels.uv)}%) to a Schedule or Preset
-        </button>
-      </div>
-
-      {/* Fan Speed Slider */}
-      <div className="card-surface" style={{ padding: '1.1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--channel-fan)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-            <Fan size={16} /> Cooling Fan Speed
-          </span>
-          <span
+            className="apple-range-input"
+            id="slider-uv"
             style={{
-              fontSize: '0.85rem',
-              fontWeight: 800,
-              color: 'var(--channel-fan)',
-              background: 'var(--channel-fan-bg)',
-              border: '1px solid var(--channel-fan-border)',
-              padding: '0.15rem 0.55rem',
-              borderRadius: '6px',
+              background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${channels.uv}%, rgba(255, 255, 255, 0.08) ${channels.uv}%, rgba(255, 255, 255, 0.08) 100%)`,
             }}
-          >
-            {Math.round(fanSpeed)}%
-          </span>
+          />
         </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={fanSpeed}
-          onChange={(e) => handleFanChange(Number(e.target.value))}
-          className="range-slider"
-          id="slider-fan"
-        />
+
+        {/* Fan Speed Slider */}
+        <div className="apple-slider-card">
+          <div className="apple-slider-header">
+            <div className="apple-slider-title">
+              <Fan size={16} color="#14b8a6" />
+              <span>Cooling Fan Speed</span>
+            </div>
+            <span
+              className="apple-slider-badge"
+              style={{
+                color: '#2dd4bf',
+                background: 'rgba(20, 184, 166, 0.15)',
+                border: '1px solid rgba(20, 184, 166, 0.3)',
+              }}
+            >
+              {Math.round(fanSpeed)}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={fanSpeed}
+            onChange={(e) => handleFanChange(Number(e.target.value))}
+            className="apple-range-input"
+            id="slider-fan"
+            style={{
+              background: `linear-gradient(to right, #14b8a6 0%, #14b8a6 ${fanSpeed}%, rgba(255, 255, 255, 0.08) ${fanSpeed}%, rgba(255, 255, 255, 0.08) 100%)`,
+            }}
+          />
+        </div>
       </div>
 
-      {/* Modal: Save Manual Levels into Schedule or as Custom Preset */}
+      {/* Modal: Save Manual Levels into Schedule or Custom Preset */}
       {showSaveModal && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 100,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            zIndex: 150,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1rem',
+            padding: '1.25rem',
           }}
           onClick={() => setShowSaveModal(false)}
         >
@@ -678,61 +627,61 @@ export default function ManualPage() {
             className="card-surface"
             style={{
               width: '100%',
-              maxWidth: '480px',
+              maxWidth: '440px',
               padding: '1.5rem',
-              background: '#ffffff',
-              borderRadius: '12px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+              background: 'rgba(24, 24, 28, 0.95)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1rem',
+              gap: '1.1rem',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CalendarPlus size={18} color="#0284c7" />
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#09090b' }}>
-                  Save Light Settings
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <CalendarPlus size={18} color="#38bdf8" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                  Save Light Mix
                 </h3>
               </div>
               <button
                 onClick={() => setShowSaveModal(false)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* Current Levels Summary Pill Bar */}
+            {/* Current Levels Pill Readout */}
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '0.4rem',
-                background: '#f8fafc',
+                gap: '0.45rem',
+                background: 'rgba(255, 255, 255, 0.04)',
                 padding: '0.65rem',
-                borderRadius: '8px',
-                border: '1px solid #e2e8f0',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
                 textAlign: 'center',
               }}
             >
               <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--channel-blue)' }}>BLUE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--channel-blue)' }}>{Math.round(channels.blue)}%</div>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#60a5fa' }}>BLUE</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.blue)}%</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--channel-white)' }}>WHITE</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--channel-white)' }}>{Math.round(channels.white)}%</div>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#38bdf8' }}>WHITE</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.white)}%</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--channel-uv)' }}>UV</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--channel-uv)' }}>{Math.round(channels.uv)}%</div>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#c084fc' }}>UV</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.uv)}%</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--channel-fan)' }}>FAN</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--channel-fan)' }}>{Math.round(fanSpeed)}%</div>
+                <div style={{ fontSize: '0.62rem', fontWeight: 700, color: '#2dd4bf' }}>FAN</div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(fanSpeed)}%</div>
               </div>
             </div>
 
@@ -741,10 +690,10 @@ export default function ManualPage() {
               <div
                 style={{
                   padding: '0.65rem 0.85rem',
-                  borderRadius: '6px',
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  color: '#166534',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  color: '#10b981',
                   fontSize: '0.78rem',
                   fontWeight: 600,
                   display: 'flex',
@@ -752,81 +701,43 @@ export default function ManualPage() {
                   gap: '0.45rem',
                 }}
               >
-                <CheckCircle2 size={15} color="#16a34a" />
+                <CheckCircle2 size={16} />
                 <span>{statusMessage}</span>
               </div>
             )}
 
-            {/* Tabs: Save to Schedule vs Save as Preset */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
+            {/* Segmented Tabs: Schedule vs Quick Preset */}
+            <div className="segmented-control">
               <button
                 type="button"
+                className={saveTab === 'schedule' ? 'active' : ''}
                 onClick={() => setSaveTab('schedule')}
-                style={{
-                  flex: 1,
-                  padding: '0.6rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: saveTab === 'schedule' ? '2px solid #0284c7' : '2px solid transparent',
-                  color: saveTab === 'schedule' ? '#0284c7' : '#64748b',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.35rem',
-                }}
               >
-                <Layers size={14} /> Add into a Schedule
+                Insert into Schedule
               </button>
-
               <button
                 type="button"
+                className={saveTab === 'preset' ? 'active' : ''}
                 onClick={() => setSaveTab('preset')}
-                style={{
-                  flex: 1,
-                  padding: '0.6rem',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: saveTab === 'preset' ? '2px solid #0284c7' : '2px solid transparent',
-                  color: saveTab === 'preset' ? '#0284c7' : '#64748b',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.35rem',
-                }}
               >
-                <BookmarkPlus size={14} /> Save as Quick Profile
+                Save as Quick Profile
               </button>
             </div>
 
-            {/* Tab 1 Form: Add to Schedule */}
+            {/* Tab 1: Insert into Schedule */}
             {saveTab === 'schedule' && (
               <form onSubmit={handleSaveToSchedule} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.35rem' }}>
-                    Select Target Schedule
+                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
+                    Target Schedule
                   </label>
                   <select
                     value={selectedScheduleId}
                     onChange={(e) => setSelectedScheduleId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
-                      color: '#09090b',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                    }}
+                    style={{ width: '100%' }}
                   >
                     {availableSchedules.map((s) => (
-                      <option key={s.id} value={s.id}>
+                      <option key={s.id} value={s.id} style={{ background: '#121215', color: '#ffffff' }}>
                         {s.name} ({s.keyframes.length} keyframes)
                       </option>
                     ))}
@@ -834,98 +745,61 @@ export default function ManualPage() {
                 </div>
 
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.35rem' }}>
-                    Scheduled Time of Day (24-Hour)
+                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
+                    Time Point (24h HH:MM)
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <input
-                      type="time"
-                      value={scheduleTime}
-                      onChange={(e) => setScheduleTime(e.target.value)}
-                      required
-                      style={{
-                        flex: 1,
-                        padding: '0.55rem 0.75rem',
-                        borderRadius: '6px',
-                        border: '1px solid #cbd5e1',
-                        background: '#ffffff',
-                        color: '#09090b',
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                      }}
-                    />
-                    <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
-                      (Linear interpolation)
-                    </span>
-                  </div>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      color: '#ffffff',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.65rem 0.85rem',
+                      fontSize: '0.9rem',
+                    }}
+                  />
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem' }}
-                  >
-                    <Check size={14} /> Save Point to Schedule & Sync ESP32
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveModal(false)}
-                    className="btn-secondary"
-                    style={{ padding: '0.65rem', fontSize: '0.82rem' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <CalendarPlus size={16} /> Save & Sync Keyframe
+                </button>
               </form>
             )}
 
-            {/* Tab 2 Form: Save as Quick Profile */}
+            {/* Tab 2: Save as Quick Preset */}
             {saveTab === 'preset' && (
               <form onSubmit={handleSaveCustomPreset} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                 <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: '0.35rem' }}>
-                    Profile Name
+                  <label style={{ fontSize: '0.74rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
+                    Preset Name
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g., Deep Blue Evening, Coral Feeding..."
                     value={customPresetName}
                     onChange={(e) => setCustomPresetName(e.target.value)}
+                    placeholder="e.g. Moonlight Glow, Evening Chill"
                     required
-                    maxLength={24}
-                    style={{
-                      width: '100%',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
-                      background: '#ffffff',
-                      color: '#09090b',
-                      fontSize: '0.85rem',
-                    }}
+                    style={{ width: '100%' }}
+                    autoFocus
                   />
-                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem', display: 'block' }}>
-                    Saves to your Quick Lighting Profiles grid for 1-click activation.
-                  </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem' }}
-                  >
-                    <Check size={14} /> Add to Quick Profiles
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSaveModal(false)}
-                    className="btn-secondary"
-                    style={{ padding: '0.65rem', fontSize: '0.82rem' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ marginTop: '0.5rem' }}
+                >
+                  <BookmarkPlus size={16} /> Save to Quick Profiles
+                </button>
               </form>
             )}
           </div>
