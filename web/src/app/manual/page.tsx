@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDeviceMqtt } from '../../lib/MqttContext';
 import { SpectrumVisualizer } from '../../components/SpectrumVisualizer';
+import { AppleControlSlider } from '../../components/AppleControlSlider';
 import {
   RotateCcw,
   Sparkles,
@@ -475,135 +476,59 @@ export default function ManualPage() {
         </div>
       </div>
 
-      {/* Tactile Apple Control Center Sliders */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        {/* Royal Blue Slider */}
-        <div className="apple-slider-card">
-          <div className="apple-slider-header">
-            <div className="apple-slider-title">
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
-              <span>Royal Blue (450nm)</span>
-            </div>
-            <span
-              className="apple-slider-badge"
-              style={{
-                color: '#60a5fa',
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-              }}
-            >
-              {Math.round(channels.blue)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={channels.blue}
-            onChange={(e) => handleSliderChange('blue', Number(e.target.value))}
-            className="apple-range-input"
-            id="slider-blue"
-            style={{
-              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${channels.blue}%, rgba(255, 255, 255, 0.08) ${channels.blue}%, rgba(255, 255, 255, 0.08) 100%)`,
-            }}
-          />
-        </div>
+      {/* Authentic iOS Control Center Tactile Sliders */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+        {/* Royal Blue */}
+        <AppleControlSlider
+          label="Royal Blue"
+          sublabel="450nm • 10 LEDs"
+          value={channels.blue}
+          onChange={(val) => handleSliderChange('blue', val)}
+          icon={<Sun size={17} strokeWidth={2.4} />}
+          accentColor="#3b82f6"
+          fillGradient="linear-gradient(90deg, #1e40af 0%, #3b82f6 100%)"
+          glowColor="rgba(59, 130, 246, 0.45)"
+          id="slider-blue"
+        />
 
-        {/* Day White Slider */}
-        <div className="apple-slider-card">
-          <div className="apple-slider-header">
-            <div className="apple-slider-title">
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
-              <span>Day White (6500K)</span>
-            </div>
-            <span
-              className="apple-slider-badge"
-              style={{
-                color: '#38bdf8',
-                background: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-              }}
-            >
-              {Math.round(channels.white)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={channels.white}
-            onChange={(e) => handleSliderChange('white', Number(e.target.value))}
-            className="apple-range-input"
-            id="slider-white"
-            style={{
-              background: `linear-gradient(to right, #38bdf8 0%, #38bdf8 ${channels.white}%, rgba(255, 255, 255, 0.08) ${channels.white}%, rgba(255, 255, 255, 0.08) 100%)`,
-            }}
-          />
-        </div>
+        {/* Day White */}
+        <AppleControlSlider
+          label="Day White"
+          sublabel="6500K • 4 LEDs"
+          value={channels.white}
+          onChange={(val) => handleSliderChange('white', val)}
+          icon={<Sun size={17} strokeWidth={2.4} />}
+          accentColor="#38bdf8"
+          fillGradient="linear-gradient(90deg, #0369a1 0%, #38bdf8 100%)"
+          glowColor="rgba(56, 189, 248, 0.45)"
+          id="slider-white"
+        />
 
-        {/* Actinic UV Slider */}
-        <div className="apple-slider-card">
-          <div className="apple-slider-header">
-            <div className="apple-slider-title">
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }} />
-              <span>Actinic UV (405nm)</span>
-            </div>
-            <span
-              className="apple-slider-badge"
-              style={{
-                color: '#c084fc',
-                background: 'rgba(168, 85, 247, 0.15)',
-                border: '1px solid rgba(168, 85, 247, 0.3)',
-              }}
-            >
-              {Math.round(channels.uv)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={channels.uv}
-            onChange={(e) => handleSliderChange('uv', Number(e.target.value))}
-            className="apple-range-input"
-            id="slider-uv"
-            style={{
-              background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${channels.uv}%, rgba(255, 255, 255, 0.08) ${channels.uv}%, rgba(255, 255, 255, 0.08) 100%)`,
-            }}
-          />
-        </div>
+        {/* Actinic UV */}
+        <AppleControlSlider
+          label="Actinic UV"
+          sublabel="405nm • 2 LEDs"
+          value={channels.uv}
+          onChange={(val) => handleSliderChange('uv', val)}
+          icon={<Sparkles size={17} strokeWidth={2.4} />}
+          accentColor="#a855f7"
+          fillGradient="linear-gradient(90deg, #6b21a8 0%, #a855f7 100%)"
+          glowColor="rgba(168, 85, 247, 0.45)"
+          id="slider-uv"
+        />
 
-        {/* Fan Speed Slider */}
-        <div className="apple-slider-card">
-          <div className="apple-slider-header">
-            <div className="apple-slider-title">
-              <Fan size={16} color="#14b8a6" />
-              <span>Cooling Fan Speed</span>
-            </div>
-            <span
-              className="apple-slider-badge"
-              style={{
-                color: '#2dd4bf',
-                background: 'rgba(20, 184, 166, 0.15)',
-                border: '1px solid rgba(20, 184, 166, 0.3)',
-              }}
-            >
-              {Math.round(fanSpeed)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="100"
-            value={fanSpeed}
-            onChange={(e) => handleFanChange(Number(e.target.value))}
-            className="apple-range-input"
-            id="slider-fan"
-            style={{
-              background: `linear-gradient(to right, #14b8a6 0%, #14b8a6 ${fanSpeed}%, rgba(255, 255, 255, 0.08) ${fanSpeed}%, rgba(255, 255, 255, 0.08) 100%)`,
-            }}
-          />
-        </div>
+        {/* Cooling Fan */}
+        <AppleControlSlider
+          label="Cooling Fan"
+          sublabel="Thermal PWM Control"
+          value={fanSpeed}
+          onChange={(val) => handleFanChange(val)}
+          icon={<Fan size={17} strokeWidth={2.4} />}
+          accentColor="#14b8a6"
+          fillGradient="linear-gradient(90deg, #0f766e 0%, #14b8a6 100%)"
+          glowColor="rgba(20, 184, 166, 0.45)"
+          id="slider-fan"
+        />
       </div>
 
       {/* Modal: Save Manual Levels into Schedule or Custom Preset */}
