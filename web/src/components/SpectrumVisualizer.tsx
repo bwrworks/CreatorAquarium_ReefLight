@@ -20,17 +20,15 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
 
   // Gaussian helper to compute spectral curve intensity at wavelength wl (nm)
   const getIntensity = (wl: number) => {
-    // UV peak at 405nm, FWHM ~ 20nm
+    // UV peak at 405nm (2x Actinic UV)
     const uvContrib = (channels.uv / 100) * Math.exp(-Math.pow((wl - 405) / 14, 2)) * 85;
-    // Royal Blue peak at 450nm, FWHM ~ 25nm
-    const blueContrib = (channels.blue / 100) * Math.exp(-Math.pow((wl - 450) / 18, 2)) * 100;
-    // White: small blue pump at 450nm + broad phosphor hump at 560nm
+    // Royal Blue peak at 450nm (10x LEDs: 6x Ch1 + 4x Ch2)
+    const blueContrib = (channels.blue / 100) * Math.exp(-Math.pow((wl - 450) / 20, 2)) * 120;
+    // White: 4x LEDs (Day White 6500K)
     const whiteBlue = (channels.white / 100) * Math.exp(-Math.pow((wl - 450) / 22, 2)) * 40;
     const whitePhosphor = (channels.white / 100) * Math.exp(-Math.pow((wl - 565) / 55, 2)) * 55;
-    // Red peak at 660nm, FWHM ~ 20nm
-    const redContrib = (channels.red / 100) * Math.exp(-Math.pow((wl - 660) / 16, 2)) * 75;
 
-    const total = uvContrib + blueContrib + whiteBlue + whitePhosphor + redContrib;
+    const total = uvContrib + blueContrib + whiteBlue + whitePhosphor;
     return Math.min(total, 110);
   };
 
@@ -118,26 +116,23 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
                 {/* Visual spectrum gradient for wavelength backdrop */}
                 <linearGradient id="spectrumGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#7c3aed" stopOpacity="0.45" />    {/* UV 390-415 */}
-                  <stop offset="18%" stopColor="#2563eb" stopOpacity="0.5" />   {/* Royal Blue 450 */}
-                  <stop offset="35%" stopColor="#06b6d4" stopOpacity="0.35" />  {/* Cyan 490 */}
-                  <stop offset="55%" stopColor="#10b981" stopOpacity="0.25" />  {/* Green 530 */}
-                  <stop offset="70%" stopColor="#f59e0b" stopOpacity="0.3" />   {/* Amber 590 */}
-                  <stop offset="85%" stopColor="#dc2626" stopOpacity="0.4" />   {/* Deep Red 660 */}
-                  <stop offset="100%" stopColor="#991b1b" stopOpacity="0.25" />
+                  <stop offset="25%" stopColor="#2563eb" stopOpacity="0.5" />   {/* Royal Blue 450 */}
+                  <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.35" />  {/* Cyan 490 */}
+                  <stop offset="75%" stopColor="#10b981" stopOpacity="0.25" />  {/* Green 530 */}
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.2" />  {/* Warm phosphor */}
                 </linearGradient>
 
                 <linearGradient id="curveStrokeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                   <stop offset="0%" stopColor="#7c3aed" />
-                  <stop offset="18%" stopColor="#2563eb" />
-                  <stop offset="35%" stopColor="#0284c7" />
-                  <stop offset="55%" stopColor="#059669" />
-                  <stop offset="70%" stopColor="#d97706" />
-                  <stop offset="85%" stopColor="#dc2626" />
+                  <stop offset="25%" stopColor="#2563eb" />
+                  <stop offset="50%" stopColor="#0284c7" />
+                  <stop offset="75%" stopColor="#059669" />
+                  <stop offset="100%" stopColor="#d97706" />
                 </linearGradient>
               </defs>
 
               {/* Grid Lines */}
-              {[425, 450, 500, 550, 600, 660].map((nm) => {
+              {[405, 450, 500, 550, 600].map((nm) => {
                 const x = ((nm - 390) / (700 - 390)) * width;
                 return (
                   <line
@@ -167,7 +162,7 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
               style={{
                 height: '8px',
                 borderRadius: '4px',
-                background: 'linear-gradient(to right, #7c3aed 0%, #2563eb 18%, #06b6d4 35%, #10b981 55%, #f59e0b 70%, #dc2626 85%, #7f1d1d 100%)',
+                background: 'linear-gradient(to right, #7c3aed 0%, #2563eb 25%, #06b6d4 50%, #10b981 75%, #f59e0b 100%)',
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)',
               }}
             />
@@ -183,10 +178,9 @@ export function SpectrumVisualizer({ channels, title = 'Live Spectral Power Dist
                 fontVariantNumeric: 'tabular-nums',
               }}
             >
-              <span style={{ color: '#7c3aed' }}>405nm (UV)</span>
-              <span style={{ color: '#2563eb' }}>450nm (Blue)</span>
-              <span style={{ color: '#059669' }}>550nm (White)</span>
-              <span style={{ color: '#dc2626' }}>660nm (Red)</span>
+              <span style={{ color: '#7c3aed' }}>405nm (UV - 2 LEDs)</span>
+              <span style={{ color: '#2563eb' }}>450nm (Royal Blue - 10 LEDs)</span>
+              <span style={{ color: '#059669' }}>550-650nm (Day White - 4 LEDs)</span>
             </div>
           </div>
         </div>

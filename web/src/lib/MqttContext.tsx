@@ -6,7 +6,7 @@ import { DeviceState, Channels, Schedule, WeeklyAssignment, MqttConfig } from '.
 
 const defaultInitialState: DeviceState = {
   mode: 'auto',
-  live: { blue: 45, white: 15, red: 5, uv: 30, fan: 40 },
+  live: { blue: 45, white: 15, uv: 30, fan: 40 },
   manualOverrideExpiresAt: null,
   activeScheduleId: 'natural_reef',
   acclimation: null,

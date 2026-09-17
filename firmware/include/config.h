@@ -20,10 +20,10 @@
 // =========================================================================
 // Hardware Pinout Baseline (SRS §3)
 // =========================================================================
-#define PIN_LED_BLUE     18  // Blue channel
-#define PIN_LED_RED      19  // Red channel
-#define PIN_LED_WHITE    32  // White channel
-#define PIN_LED_UV       33  // UV channel
+#define PIN_LED_BLUE1    18  // Royal Blue Channel 1 (6 LEDs)
+#define PIN_LED_BLUE2    19  // Royal Blue Channel 2 (4 LEDs)
+#define PIN_LED_WHITE    32  // White channel (4 LEDs)
+#define PIN_LED_UV       33  // UV channel (2 LEDs)
 #define PIN_FAN_PWM       4  // 1 Electronics cooling fan
 
 #define PIN_I2C_SDA      21  // Shared I2C SDA for DS3231 RTC & SSD1306 OLED
@@ -36,10 +36,10 @@
 #define LEDC_LED_RESOLUTION    13
 #define LEDC_LED_MAX_DUTY      ((1 << LEDC_LED_RESOLUTION) - 1) // 8191
 
-#define LEDC_CHANNEL_BLUE      0
-#define LEDC_CHANNEL_RED       1
-#define LEDC_CHANNEL_WHITE     2
-#define LEDC_CHANNEL_UV        3
+#define LEDC_CHANNEL_BLUE1     0  // Royal Blue 1 (GPIO 18)
+#define LEDC_CHANNEL_BLUE2     1  // Royal Blue 2 (GPIO 19)
+#define LEDC_CHANNEL_WHITE     2  // Day White (GPIO 32)
+#define LEDC_CHANNEL_UV        3  // Actinic UV (GPIO 33)
 
 #define LEDC_FAN_FREQ_HZ       25000
 #define LEDC_FAN_RESOLUTION    8
@@ -86,7 +86,7 @@
 #define DEFAULT_MQTT_PORT      8883
 #define DEFAULT_TIMEZONE       "Asia/Kolkata"
 #define DEFAULT_TIMEZONE_OFFSET_SEC (5 * 3600 + 30 * 60) // UTC+5:30
-#define DEFAULT_OVERRIDE_TIMEOUT_SEC 7200                // 2 hours
+#define DEFAULT_OVERRIDE_TIMEOUT_SEC 900                 // 15 minutes manual override timeout
 
 // PWM Polarity: active-low LED drivers (e.g. optocouplers, inverted DIM, pull-up stages)
 // When true: 0% brightness = LEDC_LED_MAX_DUTY (OFF), 100% brightness = 0 (FULL ON)

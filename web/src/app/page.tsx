@@ -271,7 +271,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 4-Channel Live Output Cards */}
+      {/* 3-Channel Live Output Cards */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
           <h2 style={{ fontSize: '0.84rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#64748b' }}>
@@ -285,7 +285,7 @@ export default function DashboardPage() {
           <div className="channel-card blue">
             <div className="channel-card-header">
               <span className="channel-name" style={{ color: 'var(--channel-blue)' }}>
-                Royal Blue
+                Royal Blue (10x)
               </span>
               <span className="channel-pct">{Math.round(deviceState.live.blue)}%</span>
             </div>
@@ -297,7 +297,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
               <span>450nm Peak</span>
-              <span>GPIO32</span>
+              <span>GPIO18 + 19</span>
             </div>
           </div>
 
@@ -305,7 +305,7 @@ export default function DashboardPage() {
           <div className="channel-card white">
             <div className="channel-card-header">
               <span className="channel-name" style={{ color: 'var(--channel-white)' }}>
-                Day White
+                Day White (4x)
               </span>
               <span className="channel-pct">{Math.round(deviceState.live.white)}%</span>
             </div>
@@ -317,27 +317,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
               <span>6500K CRI</span>
-              <span>GPIO18</span>
-            </div>
-          </div>
-
-          {/* Deep Red */}
-          <div className="channel-card red">
-            <div className="channel-card-header">
-              <span className="channel-name" style={{ color: 'var(--channel-red)' }}>
-                Deep Red
-              </span>
-              <span className="channel-pct">{Math.round(deviceState.live.red)}%</span>
-            </div>
-            <div className="channel-meter-track">
-              <div
-                className="channel-meter-fill"
-                style={{ width: `${deviceState.live.red}%`, backgroundColor: 'var(--channel-red)' }}
-              />
-            </div>
-            <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
-              <span>660nm Peak</span>
-              <span>GPIO33</span>
+              <span>GPIO32</span>
             </div>
           </div>
 
@@ -345,7 +325,7 @@ export default function DashboardPage() {
           <div className="channel-card uv">
             <div className="channel-card-header">
               <span className="channel-name" style={{ color: 'var(--channel-uv)' }}>
-                Actinic UV
+                Actinic UV (2x)
               </span>
               <span className="channel-pct">{Math.round(deviceState.live.uv)}%</span>
             </div>
@@ -357,7 +337,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
               <span>405nm Peak</span>
-              <span>GPIO19</span>
+              <span>GPIO33</span>
             </div>
           </div>
         </div>

@@ -4,10 +4,9 @@
 #include "../include/config.h"
 
 struct ChannelValues {
-    float blue;   // 0.0 - 100.0%
-    float white;  // 0.0 - 100.0%
-    float red;    // 0.0 - 100.0%
-    float uv;     // 0.0 - 100.0%
+    float blue;   // 0.0 - 100.0% (10x Royal Blue across GPIO 18 & 19)
+    float white;  // 0.0 - 100.0% (4x Day White on GPIO 32)
+    float uv;     // 0.0 - 100.0% (2x Actinic UV on GPIO 33)
     float fan;    // 0.0 - 100.0%
 };
 
@@ -17,7 +16,7 @@ public:
     void begin();
     
     // Set channel percentage 0.0 - 100.0
-    void setChannels(float blue, float white, float red, float uv);
+    void setChannels(float blue, float white, float uv);
     void setFan(float fan);
     void setMasterOn(bool enabled);
     bool isMasterOn() const { return masterOn; }
@@ -29,10 +28,13 @@ public:
 
     // Smooth soft-start / ramp slew rate update (0% to target on power-on / wake)
     void updateSlew(float maxDeltaPercent = 0.5f);
+    bool isSoftStartActive() const { return softStartActive; }
 
 private:
     bool initialized;
     bool masterOn;
+    bool softStartActive;
+    unsigned long bootMillis;
     ChannelValues targetValues;
     ChannelValues appliedValues;
 

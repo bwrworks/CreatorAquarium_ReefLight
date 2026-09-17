@@ -106,8 +106,8 @@ void processSerialCommand(const String& cmd) {
                       rtcManager.isTimeConfirmed() ? "YES" : "NO",
                       rtcManager.hasRtcHardware() ? "YES" : "NO");
         Serial.printf("Mode: %s (Active Schedule: %s)\n", s.mode.c_str(), s.activeScheduleId.c_str());
-        Serial.printf("Channels -> Blue: %.1f%%, White: %.1f%%, Red: %.1f%%, UV: %.1f%%, Fan: %.1f%%\n",
-                      s.live.blue, s.live.white, s.live.red, s.live.uv, s.live.fan);
+        Serial.printf("Channels -> Blue: %.1f%%, White: %.1f%%, UV: %.1f%%, Fan: %.1f%%\n",
+                      s.live.blue, s.live.white, s.live.uv, s.live.fan);
         Serial.printf("Master LEDs: %s\n", s.masterOn ? "ON" : "OFF");
         Serial.printf("WiFi: %s, Cloud: %s\n", s.wifiConnected ? "CONNECTED" : "OFFLINE", s.cloudConnected ? "CONNECTED" : "OFFLINE");
         return;
@@ -138,11 +138,11 @@ void processSerialCommand(const String& cmd) {
     }
 
     if (c.startsWith("set ")) {
-        // Format: set <b%> <w%> <r%> <uv%>
-        float b = 0, w = 0, r = 0, uv = 0;
-        if (sscanf(c.c_str(), "set %f %f %f %f", &b, &w, &r, &uv) == 4) {
-            scheduleEngine.setManualChannels(b, w, r, uv);
-            Serial.printf("[CLI] Manual channels set: B=%.1f%%, W=%.1f%%, R=%.1f%%, UV=%.1f%%\n", b, w, r, uv);
+        // Format: set <b%> <w%> <uv%>
+        float b = 0, w = 0, uv = 0;
+        if (sscanf(c.c_str(), "set %f %f %f", &b, &w, &uv) == 3) {
+            scheduleEngine.setManualChannels(b, w, uv);
+            Serial.printf("[CLI] Manual channels set: B=%.1f%%, W=%.1f%%, UV=%.1f%%\n", b, w, uv);
             return;
         }
     }
@@ -173,7 +173,7 @@ void processSerialCommand(const String& cmd) {
         return;
     }
 
-    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <r> <uv> | fan <pct> | master on/off | time <ISO> | resetwifi");
+    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <uv> | fan <pct> | master on/off | time <ISO> | resetwifi");
 }
 
 void setup() {
@@ -193,10 +193,11 @@ void setup() {
     Serial.println("==================================================");
 
     // 0. Hold active-low LED driver pins HIGH immediately to prevent current surge on power-on
-    pinMode(PIN_LED_BLUE, OUTPUT);
-    digitalWrite(PIN_LED_BLUE, HIGH);
-    pinMode(PIN_LED_RED, OUTPUT);
-    digitalWrite(PIN_LED_RED, HIGH);
+    // GPIO 18 and 19 are both Royal Blue channels
+    pinMode(PIN_LED_BLUE1, OUTPUT);
+    digitalWrite(PIN_LED_BLUE1, HIGH);
+    pinMode(PIN_LED_BLUE2, OUTPUT);
+    digitalWrite(PIN_LED_BLUE2, HIGH);
     pinMode(PIN_LED_WHITE, OUTPUT);
     digitalWrite(PIN_LED_WHITE, HIGH);
     pinMode(PIN_LED_UV, OUTPUT);
@@ -212,7 +213,7 @@ void setup() {
     oledDisplay.begin();
     rtcManager.begin();
 
-    // 2. Initialize LEDC hardware outputs (Blue: 18, Red: 19, White: 32, UV: 33, Fan: 4)
+    // 2. Initialize LEDC hardware outputs (Blue1: GPIO18, Blue2: GPIO19, White: GPIO32, UV: GPIO33, Fan: GPIO4)
     ledcDriver.begin();
 
     // 3. Initialize Flash Storage (LittleFS and NVS Preferences)

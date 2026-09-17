@@ -3,34 +3,46 @@
 LedcDriver ledcDriver;
 
 LedcDriver::LedcDriver() 
-    : initialized(false), masterOn(true) {
-    targetValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
-    appliedValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
+    : initialized(false), masterOn(true), softStartActive(true), bootMillis(0) {
+    targetValues = {10.0f, 10.0f, 10.0f, 80.0f};
+    appliedValues = {10.0f, 10.0f, 10.0f, 80.0f};
 }
 
 void LedcDriver::begin() {
-    // Configure 4 LED channels (5kHz, 13-bit)
-    ledcSetup(LEDC_CHANNEL_BLUE, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcAttachPin(PIN_LED_BLUE, LEDC_CHANNEL_BLUE);
+    bootMillis = millis();
+    softStartActive = true;
 
-    ledcSetup(LEDC_CHANNEL_RED, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcAttachPin(PIN_LED_RED, LEDC_CHANNEL_RED);
+    // Configure Royal Blue 1 (GPIO 18) and Royal Blue 2 (GPIO 19)
+    ledcSetup(LEDC_CHANNEL_BLUE1, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
+    ledcAttachPin(PIN_LED_BLUE1, LEDC_CHANNEL_BLUE1);
 
+    ledcSetup(LEDC_CHANNEL_BLUE2, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
+    ledcAttachPin(PIN_LED_BLUE2, LEDC_CHANNEL_BLUE2);
+
+    // Configure Day White (GPIO 32)
     ledcSetup(LEDC_CHANNEL_WHITE, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
     ledcAttachPin(PIN_LED_WHITE, LEDC_CHANNEL_WHITE);
 
+    // Configure Actinic UV (GPIO 33)
     ledcSetup(LEDC_CHANNEL_UV, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
     ledcAttachPin(PIN_LED_UV, LEDC_CHANNEL_UV);
 
-    // Configure Fan channel (25kHz, 8-bit)
+    // Configure Fan channel (25kHz, 8-bit on GPIO 4)
     ledcSetup(LEDC_CHANNEL_FAN, LEDC_FAN_FREQ_HZ, LEDC_FAN_RESOLUTION);
     ledcAttachPin(PIN_FAN_PWM, LEDC_CHANNEL_FAN);
 
-    // Initial state: LEDs off, Fan at 80%
-    targetValues.fan = 80.0f;
-    appliedValues.fan = 80.0f;
+    // Initial safe state: Start all lights at absolute 10% soft-start to protect fish and LEDs
+    targetValues = {10.0f, 10.0f, 10.0f, 80.0f};
+    appliedValues = {10.0f, 10.0f, 10.0f, 80.0f};
+
+    uint32_t bootDuty = pctToLedDuty(10.0f);
+    ledcWrite(LEDC_CHANNEL_BLUE1, bootDuty);
+    ledcWrite(LEDC_CHANNEL_BLUE2, bootDuty);
+    ledcWrite(LEDC_CHANNEL_WHITE, bootDuty);
+    ledcWrite(LEDC_CHANNEL_UV,    bootDuty);
+
+    // Fan spins safely at 80% on boot
     ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(80.0f));
-    applyOutputs();
     initialized = true;
 }
 
@@ -55,44 +67,57 @@ uint32_t LedcDriver::pctToFanDuty(float pct) {
     return (uint32_t)((effectivePct / 100.0f) * (float)LEDC_FAN_MAX_DUTY + 0.5f);
 }
 
-void LedcDriver::setChannels(float blue, float white, float red, float uv) {
+void LedcDriver::setChannels(float blue, float white, float uv) {
     targetValues.blue  = constrain(blue, 0.0f, 100.0f);
     targetValues.white = constrain(white, 0.0f, 100.0f);
-    targetValues.red   = constrain(red, 0.0f, 100.0f);
     targetValues.uv    = constrain(uv, 0.0f, 100.0f);
-    applyOutputs();
+    // Ramps smoothly via updateSlew() to protect fish and LEDs
 }
 
 void LedcDriver::setFan(float fan) {
     targetValues.fan = constrain(fan, 0.0f, 100.0f);
-    applyOutputs();
+    appliedValues.fan = targetValues.fan;
+    ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(targetValues.fan));
 }
 
 void LedcDriver::setMasterOn(bool enabled) {
     masterOn = enabled;
-    applyOutputs();
+    if (!masterOn) {
+        applyOutputs(); // Immediately shut down if master kill switch turned OFF
+    }
 }
 
 void LedcDriver::updateSlew(float maxDeltaPercent) {
     if (!initialized) return;
 
-    auto stepValue = [maxDeltaPercent](float current, float target) -> float {
-        if (fabs(current - target) <= maxDeltaPercent) {
+    // Boot Acclimation / Soft-start logic:
+    // First 60 seconds after boot, ramp gently at ~0.15% per 100ms (~1.5% per sec, ~50-60s to target)
+    float effectiveDelta = maxDeltaPercent;
+    if (softStartActive) {
+        if (millis() - bootMillis < 60000UL) {
+            effectiveDelta = 0.15f; // 0.15% per 100ms -> gentle 50-60s ramp
+        } else {
+            softStartActive = false;
+        }
+    }
+
+    auto stepValue = [effectiveDelta](float current, float target) -> float {
+        if (fabs(current - target) <= effectiveDelta) {
             return target;
         }
-        return (current < target) ? (current + maxDeltaPercent) : (current - maxDeltaPercent);
+        return (current < target) ? (current + effectiveDelta) : (current - effectiveDelta);
     };
 
-    ChannelValues effectiveTarget = masterOn ? targetValues : ChannelValues{0.0f, 0.0f, 0.0f, 0.0f, targetValues.fan};
+    ChannelValues effectiveTarget = masterOn ? targetValues : ChannelValues{0.0f, 0.0f, 0.0f, targetValues.fan};
 
     appliedValues.blue  = stepValue(appliedValues.blue,  effectiveTarget.blue);
     appliedValues.white = stepValue(appliedValues.white, effectiveTarget.white);
-    appliedValues.red   = stepValue(appliedValues.red,   effectiveTarget.red);
     appliedValues.uv    = stepValue(appliedValues.uv,    effectiveTarget.uv);
     appliedValues.fan   = stepValue(appliedValues.fan,   effectiveTarget.fan);
 
-    ledcWrite(LEDC_CHANNEL_BLUE,  pctToLedDuty(appliedValues.blue));
-    ledcWrite(LEDC_CHANNEL_RED,   pctToLedDuty(appliedValues.red));
+    uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
+    ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);
+    ledcWrite(LEDC_CHANNEL_BLUE2, blueDuty);
     ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(appliedValues.white));
     ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(appliedValues.uv));
     ledcWrite(LEDC_CHANNEL_FAN,   pctToFanDuty(appliedValues.fan));
@@ -101,33 +126,28 @@ void LedcDriver::updateSlew(float maxDeltaPercent) {
 void LedcDriver::applyOutputs() {
     if (!masterOn) {
 #if defined(LEDC_PWM_INVERTED) && LEDC_PWM_INVERTED
-        ledcWrite(LEDC_CHANNEL_BLUE,  LEDC_LED_MAX_DUTY);
-        ledcWrite(LEDC_CHANNEL_RED,   LEDC_LED_MAX_DUTY);
+        ledcWrite(LEDC_CHANNEL_BLUE1, LEDC_LED_MAX_DUTY);
+        ledcWrite(LEDC_CHANNEL_BLUE2, LEDC_LED_MAX_DUTY);
         ledcWrite(LEDC_CHANNEL_WHITE, LEDC_LED_MAX_DUTY);
         ledcWrite(LEDC_CHANNEL_UV,    LEDC_LED_MAX_DUTY);
 #else
-        ledcWrite(LEDC_CHANNEL_BLUE,  0);
-        ledcWrite(LEDC_CHANNEL_RED,   0);
+        ledcWrite(LEDC_CHANNEL_BLUE1, 0);
+        ledcWrite(LEDC_CHANNEL_BLUE2, 0);
         ledcWrite(LEDC_CHANNEL_WHITE, 0);
         ledcWrite(LEDC_CHANNEL_UV,    0);
 #endif
-        appliedValues.blue = 0.0f;
-        appliedValues.red = 0.0f;
+        appliedValues.blue  = 0.0f;
         appliedValues.white = 0.0f;
-        appliedValues.uv = 0.0f;
+        appliedValues.uv    = 0.0f;
     } else {
-        ledcWrite(LEDC_CHANNEL_BLUE,  pctToLedDuty(targetValues.blue));
-        ledcWrite(LEDC_CHANNEL_RED,   pctToLedDuty(targetValues.red));
-        ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(targetValues.white));
-        ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(targetValues.uv));
-        appliedValues.blue  = targetValues.blue;
-        appliedValues.red   = targetValues.red;
-        appliedValues.white = targetValues.white;
-        appliedValues.uv    = targetValues.uv;
+        uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
+        ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);
+        ledcWrite(LEDC_CHANNEL_BLUE2, blueDuty);
+        ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(appliedValues.white));
+        ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(appliedValues.uv));
     }
 
-    ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(targetValues.fan));
-    appliedValues.fan = targetValues.fan;
+    ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(appliedValues.fan));
 }
 
 ChannelValues LedcDriver::getAppliedValues() const {

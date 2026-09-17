@@ -150,11 +150,10 @@ void MqttManager::publishState() {
     doc["mode"] = state.mode;
 
     JsonObject live = doc["live"].to<JsonObject>();
-    live["blue"] = round(state.live.blue * 10.0f) / 10.0f;
+    live["blue"]  = round(state.live.blue  * 10.0f) / 10.0f;
     live["white"] = round(state.live.white * 10.0f) / 10.0f;
-    live["red"] = round(state.live.red * 10.0f) / 10.0f;
-    live["uv"] = round(state.live.uv * 10.0f) / 10.0f;
-    live["fan"] = round(state.live.fan * 10.0f) / 10.0f;
+    live["uv"]    = round(state.live.uv    * 10.0f) / 10.0f;
+    live["fan"]   = round(state.live.fan   * 10.0f) / 10.0f;
 
     if (state.manualOverrideExpiresAt.length() > 0) {
         doc["manualOverrideExpiresAt"] = state.manualOverrideExpiresAt;
@@ -206,11 +205,10 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
 
     if (cmd == "channels") {
         if (!err) {
-            float b = doc["blue"] | 0.0f;
-            float w = doc["white"] | 0.0f;
-            float r = doc["red"] | 0.0f;
-            float uv = doc["uv"] | 0.0f;
-            scheduleEngine.setManualChannels(b, w, r, uv);
+            float b  = doc["blue"]  | 0.0f;
+            float w  = doc["white"] | 0.0f;
+            float uv = doc["uv"]    | 0.0f;
+            scheduleEngine.setManualChannels(b, w, uv);
             stateDirty = true;
         }
     } else if (cmd == "mode") {

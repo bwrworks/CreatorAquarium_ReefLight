@@ -32,8 +32,8 @@ private:
     String lastMode;
     int8_t lastMasterOn;
     String lastScheduleId;
-    float lastPct[4];       // Blue, White, Red, UV
-    int lastBarWidth[4];    // 0..64 pixels
+    float lastPct[3];       // Blue, White, UV
+    int lastBarWidth[3];    // 0..64 pixels
     float lastFanPct;
     int8_t lastAcclimationActive;
     int lastAcclimationDay;

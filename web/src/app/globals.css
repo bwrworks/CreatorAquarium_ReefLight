@@ -22,9 +22,6 @@
   --channel-white-bg: #f0f9ff;
   --channel-white-border: #bae6fd;
 
-  --channel-red: #dc2626;
-  --channel-red-bg: #fef2f2;
-  --channel-red-border: #fecaca;
 
   --channel-uv: #7c3aed;
   --channel-uv-bg: #f5f3ff;
@@ -228,10 +225,6 @@ body {
 .channel-card.white {
   background: #fbfdff;
   border-color: var(--channel-white-border);
-}
-.channel-card.red {
-  background: #fffafa;
-  border-color: var(--channel-red-border);
 }
 .channel-card.uv {
   background: #faf8ff;

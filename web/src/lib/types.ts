@@ -1,8 +1,7 @@
 export type Channels = {
-  blue: number;   // 0-100%
-  white: number;  // 0-100%
-  red: number;    // 0-100%
-  uv: number;     // 0-100%
+  blue: number;   // 0-100% (10x Royal Blue, GPIO 18+19)
+  white: number;  // 0-100% (4x Day White, GPIO 32)
+  uv: number;     // 0-100% (2x Actinic UV, GPIO 33)
 };
 
 export type Keyframe = {

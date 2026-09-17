@@ -36,7 +36,7 @@ public:
 
     // Mode & Manual overrides
     void setMode(const String& mode);
-    void setManualChannels(float b, float w, float r, float uv);
+    void setManualChannels(float b, float w, float uv);
     void setFan(float fanPct);
     void setMasterOn(bool on);
 
@@ -60,6 +60,7 @@ private:
     SemaphoreHandle_t mutex;
     String currentMode;              // "auto" or "manual"
     time_t manualOverrideUntilEpoch;
+    unsigned long lastManualTouchMillis; // millis() of last manual slider change
     ChannelValues manualValues;
     float currentFan;
     bool fanManualOverride;

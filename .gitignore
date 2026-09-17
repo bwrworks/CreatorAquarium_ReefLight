@@ -24,6 +24,7 @@ dist/
 # Firmware Secrets (CRITICAL SECURITY)
 firmware/include/secrets.h
 include/secrets.h
+firmware/*.py
 
 # IDE & OS files
 .vscode/

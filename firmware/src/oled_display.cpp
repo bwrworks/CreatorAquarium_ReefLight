@@ -16,7 +16,6 @@ OledDisplayManager oledDisplay;
 #define C_CYAN          0x07FF // Glowing Cyan
 #define C_BLUE          0x2BDF // Coral Sky Blue
 #define C_WHITE         0xFFFF // Crisp White
-#define C_RED           0xFA08 // Coral Neon Red
 #define C_UV            0xC81F // Actinic Violet
 #define C_GREEN         0x07E0 // Emerald Green
 #define C_PURPLE        0x981F // Deep Purple / Magenta (for MQTT pill)
@@ -49,7 +48,7 @@ OledDisplayManager::OledDisplayManager()
       lastSunDotX(-1),
       lastSunDotY(-1)
 {
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         lastPct[i] = -1.0f;
         lastBarWidth[i] = 0;
     }
@@ -83,11 +82,10 @@ bool OledDisplayManager::begin() {
     tft.setCursor(14, 40);
     tft.print("REEF CONTROLLER");
 
-    // Spectrum decorative color bar
-    tft.fillRect(14, 60, 25, 4, C_BLUE);
-    tft.fillRect(39, 60, 25, 4, C_WHITE);
-    tft.fillRect(64, 60, 25, 4, C_RED);
-    tft.fillRect(89, 60, 25, 4, C_UV);
+    // Spectrum decorative color bar (Blue, White, UV)
+    tft.fillRect(14, 60, 45, 4, C_BLUE);
+    tft.fillRect(59, 60, 35, 4, C_WHITE);
+    tft.fillRect(94, 60, 20, 4, C_UV);
 
     tft.setTextColor(C_GREEN);
     tft.setCursor(24, 80);
@@ -126,11 +124,11 @@ void OledDisplayManager::drawView0Static() {
     // Card 2: Light Control Sliders (X=0, Y=19, W=128, H=45)
     tft.drawRoundRect(0, 19, 128, 45, 3, C_CARD_BORDER);
 
-    const char* labels[4] = {"BLU", "WHT", "RED", " UV"};
-    const uint16_t colors[4] = { C_BLUE, C_WHITE, C_RED, C_UV };
+    const char* labels[3] = {"BLU", "WHT", " UV"};
+    const uint16_t colors[3] = { C_BLUE, C_WHITE, C_UV };
 
-    for (int i = 0; i < 4; i++) {
-        int y = 22 + (i * 10);
+    for (int i = 0; i < 3; i++) {
+        int y = 22 + (i * 11);
         tft.setTextSize(1);
         tft.setTextColor(colors[i], C_BG);
         tft.setCursor(3, y);
@@ -179,7 +177,7 @@ void OledDisplayManager::drawView0Static() {
     lastOverrideStr = "";
     lastSunDotX = -1;
     lastSunDotY = -1;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 3; i++) {
         lastPct[i] = -1.0f;
         lastBarWidth[i] = 0;
     }
@@ -196,7 +194,7 @@ void OledDisplayManager::drawRainbowArch() {
         if (x < 22) col = C_ORANGE;      // 06:00 Sunrise
         else if (x < 44) col = C_GOLD;   // 09:00 Morning
         else if (x < 62) col = C_WHITE;  // 12:00 Peak Solar
-        else if (x < 84) col = C_RED;    // 18:00 Sunset
+        else if (x < 84) col = C_BLUE;   // 18:00 Dusk Blue
         else col = C_UV;                 // 22:00 Moon Actinic
 
         tft.drawPixel(11 + x, y, col);
@@ -260,12 +258,12 @@ void OledDisplayManager::renderView0(const DeviceStateSnapshot& state, const Str
         lastMasterOn = (int8_t)state.masterOn;
     }
 
-    // 5. Four Channel Sliders (Y=22, 32, 42, 52)
-    float pcts[4] = { state.live.blue, state.live.white, state.live.red, state.live.uv };
-    const uint16_t colors[4] = { C_BLUE, C_WHITE, C_RED, C_UV };
+    // 5. Three Channel Sliders (BLU, WHT, UV)
+    float pcts[3] = { state.live.blue, state.live.white, state.live.uv };
+    const uint16_t colors[3] = { C_BLUE, C_WHITE, C_UV };
 
-    for (int i = 0; i < 4; i++) {
-        int y = 22 + (i * 10);
+    for (int i = 0; i < 3; i++) {
+        int y = 22 + (i * 11);
         float pct = constrain(pcts[i], 0.0f, 100.0f);
         int newW = (int)round((pct / 100.0f) * 62.0f);
         newW = constrain(newW, 0, 62);
@@ -425,14 +423,14 @@ void OledDisplayManager::draw24hIntensityGraph() {
     // Baseline axis
     tft.drawFastHLine(8, 57, 112, C_CARD_BORDER);
 
-    // Plot simulated 24h natural reef curves for Blue, White, Red, UV
-    int prevY[4] = { 57, 57, 57, 57 };
-    const uint16_t colors[4] = { C_BLUE, C_WHITE, C_RED, C_UV };
-    const float maxPcts[4] = { 85.0f, 60.0f, 25.0f, 45.0f };
+    // Plot simulated 24h natural reef curves for Blue, White, UV (3 channels)
+    int prevY[3] = { 57, 57, 57 };
+    const uint16_t colors[3] = { C_BLUE, C_WHITE, C_UV };
+    const float maxPcts[3] = { 85.0f, 55.0f, 45.0f };
 
     for (int x = 0; x < 112; x++) {
         float h = (x / 111.0f) * 24.0f; // 0..24h
-        for (int ch = 0; ch < 4; ch++) {
+        for (int ch = 0; ch < 3; ch++) {
             float pct = 0.0f;
             if (h >= 6.0f && h <= 20.0f) {
                 float bell = sinf(((h - 6.0f) / 14.0f) * 3.14159f);

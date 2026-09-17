@@ -12,7 +12,6 @@ struct KeyframeData {
     String timeStr; // "HH:MM"
     float blue;
     float white;
-    float red;
     float uv;
 };
 
@@ -72,8 +71,8 @@ public:
     int getDisplayBrightness();
     void setDisplayBrightness(int brightness);
 
-    void saveLastKnownOutputs(float b, float w, float r, float uv, float fan);
-    void loadLastKnownOutputs(float& b, float& w, float& r, float& uv, float& fan);
+    void saveLastKnownOutputs(float b, float w, float uv, float fan);
+    void loadLastKnownOutputs(float& b, float& w, float& uv, float& fan);
 
     // OTA Boot Health tracking
     bool isBootConfirmed();

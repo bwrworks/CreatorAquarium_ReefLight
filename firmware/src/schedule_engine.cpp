@@ -6,12 +6,13 @@ ScheduleEngine::ScheduleEngine()
     : mutex(nullptr),
       currentMode("auto"),
       manualOverrideUntilEpoch(0),
+      lastManualTouchMillis(0),
       currentFan(80.0f),
       fanManualOverride(false),
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
       tickCount(0) {
-    manualValues = {0.0f, 0.0f, 0.0f, 0.0f, 80.0f};
+    manualValues = {0.0f, 0.0f, 0.0f, 80.0f};
 }
 
 void ScheduleEngine::begin() {
@@ -23,11 +24,12 @@ void ScheduleEngine::begin() {
 
     // If time is not confirmed at boot, load last known outputs and hold for safety (NFR-4)
     if (!rtcManager.isTimeConfirmed()) {
-        float b, w, r, uv, fn;
-        storageManager.loadLastKnownOutputs(b, w, r, uv, fn);
+        float b, w, uv, fn;
+        storageManager.loadLastKnownOutputs(b, w, uv, fn);
         if (fn < 30.0f) fn = 80.0f;
         Serial.printf("[ENGINE] Time unconfirmed on boot. Holding last known outputs (Fan: %.1f%%).\n", fn);
-        ledcDriver.setChannels(b, w, r, uv);
+        // Set as target values — actual ramp from 10% happens via soft-start slew in LedcDriver
+        ledcDriver.setChannels(b, w, uv);
         ledcDriver.setFan(fn);
     } else {
         ledcDriver.setFan(currentFan);
@@ -56,11 +58,11 @@ void ScheduleEngine::taskFunction(void* param) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
-        // Smooth hardware ramping in auto mode; direct immediate control in manual mode
+        // Hardware slew ramping: 2.0%/100ms in auto, 5.0%/100ms in manual
+        // Note: during initial 60s boot soft-start, LedcDriver automatically caps slew at 0.15%/100ms (~50-60s ramp)
         if (xSemaphoreTake(engine->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            if (engine->currentMode != "manual") {
-                ledcDriver.updateSlew(2.0f); // 2.0% per 100ms in auto mode
-            }
+            float maxDelta = (engine->currentMode == "manual") ? 5.0f : 2.0f;
+            ledcDriver.updateSlew(maxDelta);
             xSemaphoreGive(engine->mutex);
         }
 
@@ -82,11 +84,14 @@ void ScheduleEngine::tick() {
     time_t nowEpoch = rtcManager.getEpoch();
     int secOfDay = rtcManager.getSecondsOfDay();
 
-    // Check if manual override expired
-    if (currentMode == "manual") {
-        if (manualOverrideUntilEpoch > 0 && rtcManager.isTimeConfirmed() && nowEpoch >= manualOverrideUntilEpoch) {
-            Serial.println("[ENGINE] Manual override timeout reached. Returning to Auto mode.");
+    // Check if manual override expired by 15-minute inactivity (millis-based, works without confirmed RTC)
+    if (currentMode == "manual" && lastManualTouchMillis > 0) {
+        unsigned long nowMillis = millis();
+        // 15 minutes = 900,000 ms
+        if (nowMillis - lastManualTouchMillis >= 900000UL) {
+            Serial.println("[ENGINE] 15-min manual inactivity timeout. Returning to Auto schedule.");
             currentMode = "auto";
+            lastManualTouchMillis = 0;
             manualOverrideUntilEpoch = 0;
         }
     }
@@ -95,7 +100,8 @@ void ScheduleEngine::tick() {
     resolveTodaySchedule();
 
     if (currentMode == "manual") {
-        ledcDriver.setChannels(manualValues.blue, manualValues.white, manualValues.red, manualValues.uv);
+        // In manual mode, targets are already set. Slew handled by LedcDriver taskFunction.
+        ledcDriver.setChannels(manualValues.blue, manualValues.white, manualValues.uv);
     } else {
         // Only run schedule engine if time is confirmed
         if (rtcManager.isTimeConfirmed()) {
@@ -104,11 +110,11 @@ void ScheduleEngine::tick() {
     }
 
     // Periodically save current applied outputs to NVS (every 5 minutes) for power outage recovery
-    unsigned long nowMillis = millis();
-    if (nowMillis - lastNvsSaveMillis >= 300000UL) {
-        lastNvsSaveMillis = nowMillis;
+    unsigned long nowMillis2 = millis();
+    if (nowMillis2 - lastNvsSaveMillis >= 300000UL) {
+        lastNvsSaveMillis = nowMillis2;
         ChannelValues applied = ledcDriver.getAppliedValues();
-        storageManager.saveLastKnownOutputs(applied.blue, applied.white, applied.red, applied.uv, applied.fan);
+        storageManager.saveLastKnownOutputs(applied.blue, applied.white, applied.uv, applied.fan);
     }
 
     xSemaphoreGive(mutex);
@@ -138,13 +144,12 @@ void ScheduleEngine::resolveTodaySchedule() {
 }
 
 ChannelValues ScheduleEngine::interpolate(const std::vector<KeyframeData>& keyframes, int currentSecOfDay) {
-    ChannelValues result = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    ChannelValues result = {0.0f, 0.0f, 0.0f, 0.0f};
     size_t count = keyframes.size();
     if (count == 0) return result;
     if (count == 1) {
         result.blue  = keyframes[0].blue;
         result.white = keyframes[0].white;
-        result.red   = keyframes[0].red;
         result.uv    = keyframes[0].uv;
         return result;
     }
@@ -174,7 +179,6 @@ ChannelValues ScheduleEngine::interpolate(const std::vector<KeyframeData>& keyfr
 
         result.blue  = k1.blue  + (k2.blue  - k1.blue)  * factor;
         result.white = k1.white + (k2.white - k1.white) * factor;
-        result.red   = k1.red   + (k2.red   - k1.red)   * factor;
         result.uv    = k1.uv    + (k2.uv    - k1.uv)    * factor;
         return result;
     }
@@ -190,7 +194,6 @@ ChannelValues ScheduleEngine::interpolate(const std::vector<KeyframeData>& keyfr
 
         result.blue  = k1.blue  + (k2.blue  - k1.blue)  * factor;
         result.white = k1.white + (k2.white - k1.white) * factor;
-        result.red   = k1.red   + (k2.red   - k1.red)   * factor;
         result.uv    = k1.uv    + (k2.uv    - k1.uv)    * factor;
         return result;
     }
@@ -198,7 +201,6 @@ ChannelValues ScheduleEngine::interpolate(const std::vector<KeyframeData>& keyfr
     if (idx1 == idx2) {
         result.blue  = keyframes[idx1].blue;
         result.white = keyframes[idx1].white;
-        result.red   = keyframes[idx1].red;
         result.uv    = keyframes[idx1].uv;
         return result;
     }
@@ -213,7 +215,6 @@ ChannelValues ScheduleEngine::interpolate(const std::vector<KeyframeData>& keyfr
 
     result.blue  = k1.blue  + (k2.blue  - k1.blue)  * factor;
     result.white = k1.white + (k2.white - k1.white) * factor;
-    result.red   = k1.red   + (k2.red   - k1.red)   * factor;
     result.uv    = k1.uv    + (k2.uv    - k1.uv)    * factor;
     return result;
 }
@@ -262,14 +263,14 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
     float scale = computeAcclimationScale();
     target.blue  *= scale;
     target.white *= scale;
-    target.red   *= scale;
     target.uv    *= scale;
 
-    ledcDriver.setChannels(target.blue, target.white, target.red, target.uv);
+    ledcDriver.setChannels(target.blue, target.white, target.uv);
 
     // Only apply automatic dynamic cooling fan curve if user has NOT manually adjusted the fan
     if (!fanManualOverride) {
-        float totalIntensity = (target.blue + target.white + target.red + target.uv) / 4.0f;
+        // 3-channel fan curve: Blue + White + UV
+        float totalIntensity = (target.blue + target.white + target.uv) / 3.0f;
         float dynamicFan = (totalIntensity > 5.0f) ? constrain(40.0f + totalIntensity * 0.6f, 40.0f, 100.0f) : 40.0f;
         currentFan = dynamicFan;
         ledcDriver.setFan(dynamicFan);
@@ -296,16 +297,18 @@ void ScheduleEngine::setMode(const String& mode) {
     }
 }
 
-void ScheduleEngine::setManualChannels(float b, float w, float r, float uv) {
+void ScheduleEngine::setManualChannels(float b, float w, float uv) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         currentMode = "manual";
-        // Manual control stays active until user explicitly presses "Resume Auto"
-        manualOverrideUntilEpoch = 0;
+        // Reset the 15-minute inactivity timer every time user touches a slider
+        lastManualTouchMillis = millis();
+        manualOverrideUntilEpoch = 0; // Not epoch-based; uses millis inactivity instead
         manualValues.blue  = b;
         manualValues.white = w;
-        manualValues.red   = r;
         manualValues.uv    = uv;
-        ledcDriver.setChannels(b, w, r, uv);
+        // Persist manual values so they survive power cycles
+        storageManager.saveLastKnownOutputs(b, w, uv, manualValues.fan);
+        ledcDriver.setChannels(b, w, uv);
         xSemaphoreGive(mutex);
     }
 }
@@ -372,18 +375,30 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.firmwareVersion = FIRMWARE_VERSION;
         snap.masterOn = ledcDriver.isMasterOn();
 
-        if (currentMode == "manual" && manualOverrideUntilEpoch > 0) {
-            time_t nowEpoch = rtcManager.getEpoch();
-            long rem = (long)difftime(manualOverrideUntilEpoch, nowEpoch);
-            snap.manualOverrideRemainingSec = (rem > 0) ? rem : 0;
+        if (currentMode == "manual") {
+            long rem = 0;
+            if (lastManualTouchMillis > 0) {
+                unsigned long elapsed = millis() - lastManualTouchMillis;
+                rem = (elapsed < 900000UL) ? (long)((900000UL - elapsed) / 1000UL) : 0;
+            } else if (manualOverrideUntilEpoch > 0) {
+                time_t nowEpoch = rtcManager.getEpoch();
+                long diff = (long)difftime(manualOverrideUntilEpoch, nowEpoch);
+                rem = (diff > 0) ? diff : 0;
+            }
+            snap.manualOverrideRemainingSec = rem;
 
-            time_t raw = manualOverrideUntilEpoch + rtcManager.getTimezoneOffset();
-            struct tm* ti = gmtime(&raw);
-            char buf[30];
-            snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d+05:30",
-                     ti->tm_year + 1900, ti->tm_mon + 1, ti->tm_mday,
-                     ti->tm_hour, ti->tm_min, ti->tm_sec);
-            snap.manualOverrideExpiresAt = String(buf);
+            if (rem > 0 && rtcManager.isTimeConfirmed()) {
+                time_t expiryEpoch = rtcManager.getEpoch() + rem;
+                time_t raw = expiryEpoch + rtcManager.getTimezoneOffset();
+                struct tm* ti = gmtime(&raw);
+                char buf[35];
+                snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d+05:30",
+                         ti->tm_year + 1900, ti->tm_mon + 1, ti->tm_mday,
+                         ti->tm_hour, ti->tm_min, ti->tm_sec);
+                snap.manualOverrideExpiresAt = String(buf);
+            } else {
+                snap.manualOverrideExpiresAt = "";
+            }
         } else {
             snap.manualOverrideRemainingSec = 0;
             snap.manualOverrideExpiresAt = "";

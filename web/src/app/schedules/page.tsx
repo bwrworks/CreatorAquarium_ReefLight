@@ -21,28 +21,28 @@ const defaultSchedules: Schedule[] = [
     id: 'natural_reef',
     name: 'Natural Reef Daylight',
     keyframes: [
-      { time: '00:00', blue: 0, white: 0, red: 0, uv: 0 },
-      { time: '07:30', blue: 0, white: 0, red: 0, uv: 0 },
-      { time: '09:00', blue: 35, white: 10, red: 5, uv: 15 },
-      { time: '12:00', blue: 80, white: 50, red: 20, uv: 65 },
-      { time: '15:00', blue: 85, white: 55, red: 20, uv: 70 },
-      { time: '18:00', blue: 70, white: 25, red: 10, uv: 50 },
-      { time: '20:30', blue: 40, white: 0, red: 0, uv: 30 },
-      { time: '22:00', blue: 5, white: 0, red: 0, uv: 0 },
-      { time: '23:00', blue: 0, white: 0, red: 0, uv: 0 },
+      { time: '00:00', blue: 0, white: 0, uv: 0 },
+      { time: '07:30', blue: 0, white: 0, uv: 0 },
+      { time: '09:00', blue: 35, white: 10, uv: 15 },
+      { time: '12:00', blue: 80, white: 50, uv: 65 },
+      { time: '15:00', blue: 85, white: 55, uv: 70 },
+      { time: '18:00', blue: 70, white: 25, uv: 50 },
+      { time: '20:30', blue: 40, white: 0, uv: 30 },
+      { time: '22:00', blue: 5, white: 0, uv: 0 },
+      { time: '23:00', blue: 0, white: 0, uv: 0 },
     ],
   },
   {
     id: 'deep_coral_pop',
     name: 'High Fluorescent Actinic Pop',
     keyframes: [
-      { time: '00:00', blue: 0, white: 0, red: 0, uv: 0 },
-      { time: '09:00', blue: 0, white: 0, red: 0, uv: 0 },
-      { time: '11:00', blue: 70, white: 5, red: 0, uv: 80 },
-      { time: '15:00', blue: 95, white: 15, red: 0, uv: 100 },
-      { time: '19:00', blue: 85, white: 5, red: 0, uv: 90 },
-      { time: '22:00', blue: 10, white: 0, red: 0, uv: 0 },
-      { time: '23:00', blue: 0, white: 0, red: 0, uv: 0 },
+      { time: '00:00', blue: 0, white: 0, uv: 0 },
+      { time: '09:00', blue: 0, white: 0, uv: 0 },
+      { time: '11:00', blue: 70, white: 5, uv: 80 },
+      { time: '15:00', blue: 95, white: 15, uv: 100 },
+      { time: '19:00', blue: 85, white: 5, uv: 90 },
+      { time: '22:00', blue: 10, white: 0, uv: 0 },
+      { time: '23:00', blue: 0, white: 0, uv: 0 },
     ],
   },
 ];
@@ -59,7 +59,7 @@ function secToTime(sec: number): string {
 }
 
 export default function SchedulesPage() {
-  const { publishSchedule, publishChannels } = useDeviceMqtt();
+  const { publishSchedule, publishChannels, deviceState } = useDeviceMqtt();
 
   const [schedules, setSchedules] = useState<Schedule[]>(() => {
     if (typeof window !== 'undefined') {
@@ -83,7 +83,6 @@ export default function SchedulesPage() {
   const [newKfTime, setNewKfTime] = useState<string>('14:00');
   const [newKfBlue, setNewKfBlue] = useState<number>(70);
   const [newKfWhite, setNewKfWhite] = useState<number>(30);
-  const [newKfRed, setNewKfRed] = useState<number>(10);
   const [newKfUv, setNewKfUv] = useState<number>(50);
   const [showAddKf, setShowAddKf] = useState<boolean>(false);
 
@@ -99,7 +98,7 @@ export default function SchedulesPage() {
 
   const scrubberValues = useMemo((): Channels => {
     const kfs = activeSchedule.keyframes;
-    if (kfs.length === 0) return { blue: 0, white: 0, red: 0, uv: 0 };
+    if (kfs.length === 0) return { blue: 0, white: 0, uv: 0 };
     if (kfs.length === 1) return { ...kfs[0] };
 
     const withSec = kfs.map((k) => ({ ...k, sec: timeToSec(k.time) }));
@@ -121,7 +120,6 @@ export default function SchedulesPage() {
       return {
         blue: Math.round(k1.blue + (k2.blue - k1.blue) * f),
         white: Math.round(k1.white + (k2.white - k1.white) * f),
-        red: Math.round(k1.red + (k2.red - k1.red) * f),
         uv: Math.round(k1.uv + (k2.uv - k1.uv) * f),
       };
     }
@@ -137,14 +135,13 @@ export default function SchedulesPage() {
     return {
       blue: Math.round(k1.blue + (k2.blue - k1.blue) * f),
       white: Math.round(k1.white + (k2.white - k1.white) * f),
-      red: Math.round(k1.red + (k2.red - k1.red) * f),
       uv: Math.round(k1.uv + (k2.uv - k1.uv) * f),
     };
   }, [activeSchedule, scrubberSec]);
 
   const curvePaths = useMemo(() => {
     const kfs = [...activeSchedule.keyframes].sort((a, b) => timeToSec(a.time) - timeToSec(b.time));
-    if (kfs.length < 2) return { blue: '', white: '', red: '', uv: '' };
+    if (kfs.length < 2) return { blue: '', white: '', uv: '' };
 
     const width = 1000;
     const height = 180;
@@ -163,7 +160,6 @@ export default function SchedulesPage() {
     return {
       blue: makePath('blue'),
       white: makePath('white'),
-      red: makePath('red'),
       uv: makePath('uv'),
     };
   }, [activeSchedule]);
@@ -188,7 +184,6 @@ export default function SchedulesPage() {
         time: newKfTime,
         blue: newKfBlue,
         white: newKfWhite,
-        red: newKfRed,
         uv: newKfUv,
       },
     ].sort((a, b) => timeToSec(a.time) - timeToSec(b.time));
@@ -294,10 +289,9 @@ export default function SchedulesPage() {
             <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#09090b' }}>24-Hour Photoperiod</span>
           </div>
           <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.72rem', fontWeight: 700 }}>
-            <span style={{ color: 'var(--channel-blue)' }}>Blue</span>
-            <span style={{ color: 'var(--channel-white)' }}>White</span>
-            <span style={{ color: 'var(--channel-red)' }}>Red</span>
-            <span style={{ color: 'var(--channel-uv)' }}>UV</span>
+            <span style={{ color: 'var(--channel-blue)' }}>Blue (10x)</span>
+            <span style={{ color: 'var(--channel-white)' }}>White (4x)</span>
+            <span style={{ color: 'var(--channel-uv)' }}>UV (2x)</span>
           </div>
         </div>
 
@@ -334,7 +328,6 @@ export default function SchedulesPage() {
             {/* Curves */}
             <path d={curvePaths.blue} fill="none" stroke="var(--channel-blue)" strokeWidth="3" />
             <path d={curvePaths.white} fill="none" stroke="var(--channel-white)" strokeWidth="2.5" strokeDasharray="3 2" />
-            <path d={curvePaths.red} fill="none" stroke="var(--channel-red)" strokeWidth="2.5" />
             <path d={curvePaths.uv} fill="none" stroke="var(--channel-uv)" strokeWidth="3" />
 
             {/* Keyframe Nodes */}
@@ -388,25 +381,21 @@ export default function SchedulesPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
+            gridTemplateColumns: 'repeat(3, 1fr)',
             gap: '0.5rem',
             marginTop: '0.85rem',
           }}
         >
           <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-blue-bg)', border: '1px solid var(--channel-blue-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-blue)' }}>BLUE</div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-blue)' }}>BLUE (10x)</div>
             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-blue)' }}>{scrubberValues.blue}%</div>
           </div>
           <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-white-bg)', border: '1px solid var(--channel-white-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-white)' }}>WHITE</div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-white)' }}>WHITE (4x)</div>
             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-white)' }}>{scrubberValues.white}%</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-red-bg)', border: '1px solid var(--channel-red-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-red)' }}>RED</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-red)' }}>{scrubberValues.red}%</div>
-          </div>
           <div style={{ textAlign: 'center', padding: '0.5rem', borderRadius: '6px', background: 'var(--channel-uv-bg)', border: '1px solid var(--channel-uv-border)' }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-uv)' }}>UV</div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--channel-uv)' }}>UV (2x)</div>
             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--channel-uv)' }}>{scrubberValues.uv}%</div>
           </div>
         </div>
@@ -496,7 +485,34 @@ export default function SchedulesPage() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.2rem' }}>
+              <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748b' }}>Channel Intensities</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewKfBlue(Math.round(deviceState.live.blue));
+                  setNewKfWhite(Math.round(deviceState.live.white));
+                  setNewKfUv(Math.round(deviceState.live.uv));
+                }}
+                className="btn-secondary"
+                style={{
+                  padding: '0.25rem 0.6rem',
+                  fontSize: '0.72rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  background: '#f0fdf4',
+                  color: '#166534',
+                  border: '1px solid #bbf7d0',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                <Sparkles size={12} color="#16a34a" /> Use Live Light Mix ({Math.round(deviceState.live.blue)}% / {Math.round(deviceState.live.white)}% / {Math.round(deviceState.live.uv)}%)
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
               <div>
                 <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--channel-blue)' }}>Blue: {newKfBlue}%</label>
                 <input
@@ -516,17 +532,6 @@ export default function SchedulesPage() {
                   max="100"
                   value={newKfWhite}
                   onChange={(e) => setNewKfWhite(Number(e.target.value))}
-                  className="range-slider"
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--channel-red)' }}>Red: {newKfRed}%</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={newKfRed}
-                  onChange={(e) => setNewKfRed(Number(e.target.value))}
                   className="range-slider"
                 />
               </div>
@@ -570,7 +575,6 @@ export default function SchedulesPage() {
                 <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.75rem', fontWeight: 600 }}>
                   <span style={{ color: 'var(--channel-blue)' }}>B:{kf.blue}%</span>
                   <span style={{ color: 'var(--channel-white)' }}>W:{kf.white}%</span>
-                  <span style={{ color: 'var(--channel-red)' }}>R:{kf.red}%</span>
                   <span style={{ color: 'var(--channel-uv)' }}>UV:{kf.uv}%</span>
                 </div>
               </div>

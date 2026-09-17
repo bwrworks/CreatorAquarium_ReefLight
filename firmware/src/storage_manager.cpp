@@ -46,15 +46,15 @@ void StorageManager::seedDefaultData() {
   "id": "natural_reef",
   "name": "Natural Reef Daylight",
   "keyframes": [
-    { "time": "00:00", "blue": 0, "white": 0, "red": 0, "uv": 0 },
-    { "time": "07:30", "blue": 0, "white": 0, "red": 0, "uv": 0 },
-    { "time": "09:00", "blue": 35, "white": 10, "red": 5, "uv": 15 },
-    { "time": "12:00", "blue": 80, "white": 50, "red": 20, "uv": 65 },
-    { "time": "15:00", "blue": 85, "white": 55, "red": 20, "uv": 70 },
-    { "time": "18:00", "blue": 70, "white": 25, "red": 10, "uv": 50 },
-    { "time": "20:30", "blue": 40, "white": 0, "red": 0, "uv": 30 },
-    { "time": "22:00", "blue": 5, "white": 0, "red": 0, "uv": 0 },
-    { "time": "23:00", "blue": 0, "white": 0, "red": 0, "uv": 0 }
+    { "time": "00:00", "blue": 0, "white": 0, "uv": 0 },
+    { "time": "07:30", "blue": 0, "white": 0, "uv": 0 },
+    { "time": "09:00", "blue": 45, "white": 10, "uv": 20 },
+    { "time": "12:00", "blue": 85, "white": 55, "uv": 65 },
+    { "time": "15:00", "blue": 90, "white": 60, "uv": 70 },
+    { "time": "18:00", "blue": 75, "white": 25, "uv": 50 },
+    { "time": "20:30", "blue": 45, "white": 0, "uv": 30 },
+    { "time": "22:00", "blue": 6, "white": 0, "uv": 0 },
+    { "time": "23:00", "blue": 0, "white": 0, "uv": 0 }
   ]
 })json";
 
@@ -139,7 +139,6 @@ bool StorageManager::loadSchedule(const String& id, ScheduleData& outSchedule) {
         k.timeSec = parseTimeToSeconds(k.timeStr.c_str());
         k.blue    = kf["blue"] | 0.0f;
         k.white   = kf["white"] | 0.0f;
-        k.red     = kf["red"] | 0.0f;
         k.uv      = kf["uv"] | 0.0f;
         outSchedule.keyframes.push_back(k);
     }
@@ -273,19 +272,17 @@ void StorageManager::setDisplayBrightness(int brightness) {
     prefs.putInt("disp_bright", brightness);
 }
 
-void StorageManager::saveLastKnownOutputs(float b, float w, float r, float uv, float fan) {
+void StorageManager::saveLastKnownOutputs(float b, float w, float uv, float fan) {
     prefs.putFloat("last_b", b);
     prefs.putFloat("last_w", w);
-    prefs.putFloat("last_r", r);
     prefs.putFloat("last_uv", uv);
     prefs.putFloat("last_fan", fan);
 }
 
-void StorageManager::loadLastKnownOutputs(float& b, float& w, float& r, float& uv, float& fan) {
-    b = prefs.getFloat("last_b", 0.0f);
-    w = prefs.getFloat("last_w", 0.0f);
-    r = prefs.getFloat("last_r", 0.0f);
-    uv = prefs.getFloat("last_uv", 0.0f);
+void StorageManager::loadLastKnownOutputs(float& b, float& w, float& uv, float& fan) {
+    b = prefs.getFloat("last_b", 10.0f); // Soft-start default 10%
+    w = prefs.getFloat("last_w", 10.0f);
+    uv = prefs.getFloat("last_uv", 10.0f);
     fan = prefs.getFloat("last_fan", 80.0f);
     if (fan < 25.0f && fan > 0.0f) fan = 40.0f; // prevent stall below 25%
 }
