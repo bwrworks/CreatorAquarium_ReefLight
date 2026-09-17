@@ -421,6 +421,9 @@ export default function ManualPage() {
         </div>
       )}
 
+      {/* Live Resulting Light Spectrum Visualizer (Top Position for Immediate Feedback) */}
+      <SpectrumVisualizer channels={channels} title="Resulting Light Spectrum (Live Mix)" />
+
       {/* Quick Lighting Profiles (Built-in + Custom Saved Presets) */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -654,9 +657,6 @@ export default function ManualPage() {
           id="slider-fan"
         />
       </div>
-
-      {/* Real-Time Resulting Spectrum Underneath */}
-      <SpectrumVisualizer channels={channels} title="Resulting Light Spectrum (Live Mix)" />
 
       {/* Modal: Save Manual Levels into Schedule or as Custom Preset */}
       {showSaveModal && (
