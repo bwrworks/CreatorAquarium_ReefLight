@@ -71,6 +71,7 @@ private:
     String currentActiveScheduleId;
 
     unsigned long lastNvsSaveMillis;
+    bool pendingNvsSave;
     volatile uint32_t tickCount;
 
     void evaluateSchedule(int secOfDay);

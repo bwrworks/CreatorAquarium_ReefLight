@@ -15,6 +15,7 @@ MqttManager::MqttManager()
       lastReconnectAttempt(0),
       reconnectInterval(2000),
       lastHeartbeatMillis(0),
+      lastCmdMillis(0),
       stateDirty(false) {}
 
 void MqttManager::setupTopics() {
@@ -129,8 +130,10 @@ void MqttManager::loop() {
         mqttClient.loop();
 
         unsigned long now = millis();
-        // Periodic heartbeat publish every 15 seconds, or on demand if state changed
-        if (stateDirty || (now - lastHeartbeatMillis >= 15000UL)) {
+        // Periodic heartbeat publish every 15 seconds, or if state is dirty and active commands have settled for 800ms
+        bool dirtySettled = stateDirty && (now - lastCmdMillis >= 800UL);
+        bool heartbeat = (now - lastHeartbeatMillis >= 15000UL);
+        if (dirtySettled || heartbeat) {
             lastHeartbeatMillis = now;
             stateDirty = false;
             publishState();
@@ -199,6 +202,7 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
 
     if (!topicStr.startsWith(prefix)) return;
     String cmd = topicStr.substring(prefix.length());
+    lastCmdMillis = millis();
 
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payloadStr);

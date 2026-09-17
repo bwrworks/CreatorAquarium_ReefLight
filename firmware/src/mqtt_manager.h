@@ -37,6 +37,7 @@ private:
     unsigned long lastReconnectAttempt;
     unsigned long reconnectInterval;
     unsigned long lastHeartbeatMillis;
+    unsigned long lastCmdMillis;
     bool stateDirty;
 
     void connectToBroker();

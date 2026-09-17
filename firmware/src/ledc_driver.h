@@ -29,6 +29,7 @@ public:
     // Smooth soft-start / ramp slew rate update (0% to target on power-on / wake)
     void updateSlew(float maxDeltaPercent = 0.5f);
     bool isSoftStartActive() const { return softStartActive; }
+    void disableSoftStart() { softStartActive = false; }
 
 private:
     bool initialized;

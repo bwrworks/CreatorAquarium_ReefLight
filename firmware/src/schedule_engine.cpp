@@ -11,6 +11,7 @@ ScheduleEngine::ScheduleEngine()
       fanManualOverride(false),
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
+      pendingNvsSave(false),
       tickCount(0) {
     manualValues = {0.0f, 0.0f, 0.0f, 80.0f};
 }
@@ -58,10 +59,10 @@ void ScheduleEngine::taskFunction(void* param) {
     for (;;) {
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
 
-        // Hardware slew ramping: 2.0%/100ms in auto, 5.0%/100ms in manual
-        // Note: during initial 60s boot soft-start, LedcDriver automatically caps slew at 0.15%/100ms (~50-60s ramp)
+        // Hardware slew ramping: 2.0%/100ms in auto (gentle for livestock), 25.0%/100ms in manual (snappy real-time slider tracking)
+        // Note: during initial 60s boot soft-start, LedcDriver automatically caps slew at 0.15%/100ms (~50-60s ramp) unless manually touched
         if (xSemaphoreTake(engine->mutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            float maxDelta = (engine->currentMode == "manual") ? 5.0f : 2.0f;
+            float maxDelta = (engine->currentMode == "manual") ? 25.0f : 2.0f;
             ledcDriver.updateSlew(maxDelta);
             xSemaphoreGive(engine->mutex);
         }
@@ -109,8 +110,14 @@ void ScheduleEngine::tick() {
         }
     }
 
-    // Periodically save current applied outputs to NVS (every 5 minutes) for power outage recovery
+    // Defer NVS save until 3 seconds after user finishes adjusting sliders
     unsigned long nowMillis2 = millis();
+    if (pendingNvsSave && (nowMillis2 - lastManualTouchMillis >= 3000UL)) {
+        pendingNvsSave = false;
+        storageManager.saveLastKnownOutputs(manualValues.blue, manualValues.white, manualValues.uv, manualValues.fan);
+    }
+
+    // Periodically save current applied outputs to NVS (every 5 minutes) for power outage recovery
     if (nowMillis2 - lastNvsSaveMillis >= 300000UL) {
         lastNvsSaveMillis = nowMillis2;
         ChannelValues applied = ledcDriver.getAppliedValues();
@@ -306,9 +313,9 @@ void ScheduleEngine::setManualChannels(float b, float w, float uv) {
         manualValues.blue  = b;
         manualValues.white = w;
         manualValues.uv    = uv;
-        // Persist manual values so they survive power cycles
-        storageManager.saveLastKnownOutputs(b, w, uv, manualValues.fan);
+        ledcDriver.disableSoftStart(); // Immediately bypass boot soft-start when user takes manual control
         ledcDriver.setChannels(b, w, uv);
+        pendingNvsSave = true; // Defer NVS write so flash is not blocked on every slider step
         xSemaphoreGive(mutex);
     }
 }
@@ -317,7 +324,11 @@ void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         currentFan = constrain(fanPct, 0.0f, 100.0f);
         fanManualOverride = true; // User manually locked/adjusted fan speed
+        manualValues.fan = currentFan;
+        ledcDriver.disableSoftStart();
         ledcDriver.setFan(currentFan);
+        lastManualTouchMillis = millis();
+        pendingNvsSave = true;
         xSemaphoreGive(mutex);
     }
 }

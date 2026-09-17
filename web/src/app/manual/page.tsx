@@ -77,10 +77,26 @@ export default function ManualPage() {
 
   const [fanSpeed, setFanSpeed] = useState<number>(deviceState.live.fan || 40);
   const [activePreset, setActivePreset] = useState<string | null>(null);
+  
+  // Interaction & Throttling Refs for Glitch-Free Real-Time Control
   const isInteractingRef = React.useRef<boolean>(false);
-  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-  const idleTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const interactionGraceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const latestChannelsRef = React.useRef<Channels>(channels);
+  const latestFanRef = React.useRef<number>(fanSpeed);
+  const lastPublishChannelsTimeRef = React.useRef<number>(0);
+  const lastPublishFanTimeRef = React.useRef<number>(0);
+  const trailingChannelsTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const trailingFanTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const prevModeRef = React.useRef(deviceState.mode);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    latestChannelsRef.current = channels;
+  }, [channels]);
+
+  useEffect(() => {
+    latestFanRef.current = fanSpeed;
+  }, [fanSpeed]);
 
   // Save Modal & Preset state
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false);
@@ -122,7 +138,7 @@ export default function ManualPage() {
     }
   }, []);
 
-  // Sync from device only when not actively interacting
+  // Sync from device only when user is NOT actively touching/dragging
   useEffect(() => {
     if (!isInteractingRef.current || (prevModeRef.current === 'manual' && deviceState.mode === 'auto')) {
       setChannels({
@@ -135,46 +151,104 @@ export default function ManualPage() {
     prevModeRef.current = deviceState.mode;
   }, [deviceState.live, deviceState.mode]);
 
+  const handleSliderDragStart = () => {
+    isInteractingRef.current = true;
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+  };
+
   const handleSliderChange = (channelKey: keyof Channels, value: number) => {
     isInteractingRef.current = true;
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+
     const updated = { ...channels, [channelKey]: value };
     setChannels(updated);
+    latestChannelsRef.current = updated;
     setActivePreset(null);
 
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
+    // Throttle publishing to ESP32 at ~11 Hz (every 85ms) while dragging
+    const now = Date.now();
+    if (now - lastPublishChannelsTimeRef.current >= 85) {
+      lastPublishChannelsTimeRef.current = now;
       publishChannels(updated);
-    }, 50);
+    }
 
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => {
+    // Trailing edge timer guarantees final intermediate step is never lost
+    if (trailingChannelsTimerRef.current) clearTimeout(trailingChannelsTimerRef.current);
+    trailingChannelsTimerRef.current = setTimeout(() => {
+      publishChannels(latestChannelsRef.current);
+    }, 90);
+  };
+
+  const handleSliderDragEnd = (channelKey: keyof Channels, finalVal: number) => {
+    if (trailingChannelsTimerRef.current) clearTimeout(trailingChannelsTimerRef.current);
+    const updated = { ...latestChannelsRef.current, [channelKey]: finalVal };
+    setChannels(updated);
+    latestChannelsRef.current = updated;
+    publishChannels(updated);
+
+    // Lock out incoming echoes for 2000ms after release to eliminate jitter
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+    interactionGraceTimerRef.current = setTimeout(() => {
       isInteractingRef.current = false;
-    }, 1200);
+    }, 2000);
   };
 
   const handleFanChange = (value: number) => {
+    isInteractingRef.current = true;
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+
     setFanSpeed(value);
-    publishFan(value);
+    latestFanRef.current = value;
+
+    const now = Date.now();
+    if (now - lastPublishFanTimeRef.current >= 85) {
+      lastPublishFanTimeRef.current = now;
+      publishFan(value);
+    }
+
+    if (trailingFanTimerRef.current) clearTimeout(trailingFanTimerRef.current);
+    trailingFanTimerRef.current = setTimeout(() => {
+      publishFan(latestFanRef.current);
+    }, 90);
+  };
+
+  const handleFanDragEnd = (finalVal: number) => {
+    if (trailingFanTimerRef.current) clearTimeout(trailingFanTimerRef.current);
+    setFanSpeed(finalVal);
+    latestFanRef.current = finalVal;
+    publishFan(finalVal);
+
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+    interactionGraceTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 2000);
   };
 
   const applyPreset = (name: string, presetChannels: Channels, fan: number) => {
     isInteractingRef.current = true;
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+    if (trailingChannelsTimerRef.current) clearTimeout(trailingChannelsTimerRef.current);
+    if (trailingFanTimerRef.current) clearTimeout(trailingFanTimerRef.current);
+
     setActivePreset(name);
     setChannels(presetChannels);
     setFanSpeed(fan);
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    latestChannelsRef.current = presetChannels;
+    latestFanRef.current = fan;
+
     publishChannels(presetChannels);
     publishFan(fan);
 
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(() => {
+    interactionGraceTimerRef.current = setTimeout(() => {
       isInteractingRef.current = false;
-    }, 1200);
+    }, 2000);
   };
 
   const handleRevertAuto = () => {
     isInteractingRef.current = false;
-    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+    if (trailingChannelsTimerRef.current) clearTimeout(trailingChannelsTimerRef.current);
+    if (trailingFanTimerRef.current) clearTimeout(trailingFanTimerRef.current);
     publishMode('auto');
   };
 
@@ -484,6 +558,8 @@ export default function ManualPage() {
           sublabel="450nm • 10 LEDs"
           value={channels.blue}
           onChange={(val) => handleSliderChange('blue', val)}
+          onDragStart={handleSliderDragStart}
+          onDragEnd={(val) => handleSliderDragEnd('blue', val)}
           icon={<Sun size={17} strokeWidth={2.4} />}
           accentColor="#3b82f6"
           fillGradient="linear-gradient(90deg, #1e40af 0%, #3b82f6 100%)"
@@ -497,6 +573,8 @@ export default function ManualPage() {
           sublabel="6500K • 4 LEDs"
           value={channels.white}
           onChange={(val) => handleSliderChange('white', val)}
+          onDragStart={handleSliderDragStart}
+          onDragEnd={(val) => handleSliderDragEnd('white', val)}
           icon={<Sun size={17} strokeWidth={2.4} />}
           accentColor="#38bdf8"
           fillGradient="linear-gradient(90deg, #0369a1 0%, #38bdf8 100%)"
@@ -510,6 +588,8 @@ export default function ManualPage() {
           sublabel="405nm • 2 LEDs"
           value={channels.uv}
           onChange={(val) => handleSliderChange('uv', val)}
+          onDragStart={handleSliderDragStart}
+          onDragEnd={(val) => handleSliderDragEnd('uv', val)}
           icon={<Sparkles size={17} strokeWidth={2.4} />}
           accentColor="#a855f7"
           fillGradient="linear-gradient(90deg, #6b21a8 0%, #a855f7 100%)"
@@ -523,6 +603,8 @@ export default function ManualPage() {
           sublabel="Thermal PWM Control"
           value={fanSpeed}
           onChange={(val) => handleFanChange(val)}
+          onDragStart={handleSliderDragStart}
+          onDragEnd={(val) => handleFanDragEnd(val)}
           icon={<Fan size={17} strokeWidth={2.4} />}
           accentColor="#14b8a6"
           fillGradient="linear-gradient(90deg, #0f766e 0%, #14b8a6 100%)"
