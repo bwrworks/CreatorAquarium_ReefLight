@@ -164,6 +164,16 @@ void processSerialCommand(const String& cmd) {
         return;
     }
 
+    if (c.startsWith("fanpol ")) {
+        String p = c.substring(7);
+        p.trim();
+        bool inv = p.equalsIgnoreCase("invert") || p.equalsIgnoreCase("inverted") || p.equalsIgnoreCase("true") || p.equalsIgnoreCase("1");
+        storageManager.setFanInverted(inv);
+        ledcDriver.setFanInverted(inv);
+        Serial.printf("[CLI] Fan polarity set to: %s\n", inv ? "INVERTED (Active-Low Optocoupler)" : "NORMAL (Active-High FET)");
+        return;
+    }
+
     if (c.equalsIgnoreCase("resetwifi")) {
         WiFiManager wm;
         wm.resetSettings();
@@ -173,10 +183,25 @@ void processSerialCommand(const String& cmd) {
         return;
     }
 
-    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <uv> | fan <pct> | master on/off | time <ISO> | resetwifi");
+    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <uv> | fan <pct> | fanpol normal/invert | master on/off | time <ISO> | resetwifi");
 }
 
 void setup() {
+    // 0. Hold active-low LED driver pins HIGH immediately at the very first instruction
+    // In active-low (inverted PWM), HIGH = 0% light (pure DC OFF, optocouplers saturated)
+    pinMode(PIN_LED_BLUE1, OUTPUT);
+    digitalWrite(PIN_LED_BLUE1, HIGH);
+    pinMode(PIN_LED_BLUE2, OUTPUT);
+    digitalWrite(PIN_LED_BLUE2, HIGH);
+    pinMode(PIN_LED_WHITE, OUTPUT);
+    digitalWrite(PIN_LED_WHITE, HIGH);
+    pinMode(PIN_LED_UV, OUTPUT);
+    digitalWrite(PIN_LED_UV, HIGH);
+
+    // Fan pin: start LOW (OFF)
+    pinMode(PIN_FAN_PWM, OUTPUT);
+    digitalWrite(PIN_FAN_PWM, LOW);
+
     // Disable brownout detector to prevent reboot loops on buck converters or noisy external power
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
@@ -187,23 +212,10 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(300);
+    delay(150);
     Serial.println("\n==================================================");
     Serial.println("   REEF AQUARIUM LED CONTROLLER v" FIRMWARE_VERSION);
     Serial.println("==================================================");
-
-    // 0. Hold active-low LED driver pins HIGH immediately to prevent current surge on power-on
-    // GPIO 18 and 19 are both Royal Blue channels
-    pinMode(PIN_LED_BLUE1, OUTPUT);
-    digitalWrite(PIN_LED_BLUE1, HIGH);
-    pinMode(PIN_LED_BLUE2, OUTPUT);
-    digitalWrite(PIN_LED_BLUE2, HIGH);
-    pinMode(PIN_LED_WHITE, OUTPUT);
-    digitalWrite(PIN_LED_WHITE, HIGH);
-    pinMode(PIN_LED_UV, OUTPUT);
-    digitalWrite(PIN_LED_UV, HIGH);
-    pinMode(PIN_FAN_PWM, OUTPUT);
-    digitalWrite(PIN_FAN_PWM, HIGH); // Active-high PWM: start HIGH so fan spins immediately on boot
 
     // Initialize I2C bus once with timeout
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);

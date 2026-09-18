@@ -213,13 +213,11 @@ export default function DashboardPage() {
                   border: '1px solid rgba(245, 158, 11, 0.3)',
                 }}
               >
-                MANUAL HOLD
+                MANUAL ACTIVE
               </span>
-              {remainingTimeStr && (
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                  Auto-reverts in <strong style={{ color: 'var(--text-secondary)' }}>{remainingTimeStr}</strong>
-                </span>
-              )}
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Permanent hold • Resumes when selected
+              </span>
             </div>
 
             <button

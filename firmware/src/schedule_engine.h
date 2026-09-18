@@ -21,6 +21,7 @@ struct DeviceStateSnapshot {
     bool cloudConnected;
     String firmwareVersion;
     bool masterOn;
+    bool fanInverted;
 };
 
 class ScheduleEngine {
@@ -43,6 +44,9 @@ public:
     // Force reload of active schedule / weekly map from storage
     void reloadConfig();
 
+    // Release boot-hold early when app or CLI sends active command
+    void releaseBootHold();
+
     // Acclimation control
     void startAcclimation(const String& scheduleId, float startPct, int days);
     void cancelAcclimation();
@@ -64,6 +68,8 @@ private:
     ChannelValues manualValues;
     float currentFan;
     bool fanManualOverride;
+    bool bootHoldActive;
+    unsigned long bootStartMillis;
 
     ScheduleData activeSchedule;
     WeeklyAssignmentData weekly;

@@ -43,6 +43,7 @@ export type DeviceState = {
   cloudConnected: boolean;
   firmwareVersion: string;
   masterOn?: boolean;
+  fanInverted?: boolean;
 };
 
 export type MqttConfig = {

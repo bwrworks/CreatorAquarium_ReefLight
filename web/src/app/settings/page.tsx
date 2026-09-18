@@ -11,10 +11,22 @@ import {
   Save,
   Smartphone,
   Cpu,
+  Fan,
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { config, saveConfig, publishOta, publishTime, isSimulated, setSimulated, logout } = useDeviceMqtt();
+  const {
+    config,
+    saveConfig,
+    publishOta,
+    publishTime,
+    deviceState,
+    publishFanPolarity,
+    publishFan,
+    isSimulated,
+    setSimulated,
+    logout,
+  } = useDeviceMqtt();
 
   const [brokerUrl, setBrokerUrl] = useState(config.brokerUrl);
   const [username, setUsername] = useState(config.username || '');
@@ -31,6 +43,13 @@ export default function SettingsPage() {
 
   const [timezone, setTimezone] = useState('Asia/Kolkata (UTC+05:30)');
   const [timeSyncSuccess, setTimeSyncSuccess] = useState(false);
+  const [fanPolSuccess, setFanPolSuccess] = useState(false);
+
+  const handleToggleFanPolarity = (inverted: boolean) => {
+    publishFanPolarity(inverted);
+    setFanPolSuccess(true);
+    setTimeout(() => setFanPolSuccess(false), 2500);
+  };
 
   // OTA
   const [otaUrl, setOtaUrl] = useState('');
@@ -243,6 +262,90 @@ export default function SettingsPage() {
               </>
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Cooling Fan Hardware Configuration & Polarity */}
+      <div className="card-surface" style={{ padding: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+            <Fan size={18} color="#38bdf8" />
+            <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Cooling Fan Hardware Signal (GPIO 4)
+            </h3>
+          </div>
+          <span
+            style={{
+              fontSize: '0.68rem',
+              fontWeight: 700,
+              padding: '0.2rem 0.55rem',
+              borderRadius: 'var(--radius-full)',
+              background: deviceState.fanInverted ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+              color: deviceState.fanInverted ? '#fbbf24' : '#38bdf8',
+              border: deviceState.fanInverted ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
+            }}
+          >
+            {deviceState.fanInverted ? 'Inverted (Active-Low)' : 'Normal (Active-High)'}
+          </span>
+        </div>
+
+        <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginBottom: '0.9rem', lineHeight: 1.45 }}>
+          If your fan stays locked at 100% full speed even when the slider is at 0%, your driver board uses an active-low optocoupler or inverted MOSFET stage. Toggle below to invert the PWM polarity instantly:
+        </p>
+
+        <div style={{ display: 'flex', gap: '0.55rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
+          <button
+            type="button"
+            onClick={() => handleToggleFanPolarity(false)}
+            className={`btn-secondary ${!deviceState.fanInverted ? 'active' : ''}`}
+            style={{ flex: 1, minWidth: '130px', fontSize: '0.76rem', padding: '0.55rem' }}
+          >
+            Normal (Active-High FET)
+          </button>
+          <button
+            type="button"
+            onClick={() => handleToggleFanPolarity(true)}
+            className={`btn-secondary ${deviceState.fanInverted ? 'active' : ''}`}
+            style={{ flex: 1, minWidth: '130px', fontSize: '0.76rem', padding: '0.55rem' }}
+          >
+            Inverted (Active-Low Optocoupler)
+          </button>
+        </div>
+
+        {/* Quick Instant Test Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-dim)', marginRight: '0.2rem' }}>
+            Instant Test:
+          </span>
+          <button
+            type="button"
+            onClick={() => publishFan(0)}
+            className="btn-pill"
+            style={{ fontSize: '0.68rem', padding: '0.2rem 0.55rem' }}
+          >
+            0% (Stop)
+          </button>
+          <button
+            type="button"
+            onClick={() => publishFan(50)}
+            className="btn-pill"
+            style={{ fontSize: '0.68rem', padding: '0.2rem 0.55rem' }}
+          >
+            50% (Medium)
+          </button>
+          <button
+            type="button"
+            onClick={() => publishFan(100)}
+            className="btn-pill"
+            style={{ fontSize: '0.68rem', padding: '0.2rem 0.55rem' }}
+          >
+            100% (Full)
+          </button>
+          {fanPolSuccess && (
+            <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700, marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+              <Check size={12} /> Saved to ESP32!
+            </span>
+          )}
         </div>
       </div>
 

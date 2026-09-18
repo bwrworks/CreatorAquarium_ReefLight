@@ -7,34 +7,31 @@ ScheduleEngine::ScheduleEngine()
       currentMode("auto"),
       manualOverrideUntilEpoch(0),
       lastManualTouchMillis(0),
-      currentFan(80.0f),
+      currentFan(0.0f),
       fanManualOverride(false),
+      bootHoldActive(true),
+      bootStartMillis(0),
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
       pendingNvsSave(false),
       tickCount(0) {
-    manualValues = {0.0f, 0.0f, 0.0f, 80.0f};
+    manualValues = {0.0f, 0.0f, 0.0f, 0.0f};
 }
 
 void ScheduleEngine::begin() {
     mutex = xSemaphoreCreateMutex();
+    bootStartMillis = millis();
+    bootHoldActive = true;
 
-    // Load initial weekly assignment & acclimation status
+    // Load initial weekly assignment, acclimation status, and fan polarity
     storageManager.loadWeeklyAssignment(weekly);
     storageManager.loadAcclimation(acclimation);
+    ledcDriver.setFanInverted(storageManager.getFanInverted());
 
-    // If time is not confirmed at boot, load last known outputs and hold for safety (NFR-4)
-    if (!rtcManager.isTimeConfirmed()) {
-        float b, w, uv, fn;
-        storageManager.loadLastKnownOutputs(b, w, uv, fn);
-        if (fn < 30.0f) fn = 80.0f;
-        Serial.printf("[ENGINE] Time unconfirmed on boot. Holding last known outputs (Fan: %.1f%%).\n", fn);
-        // Set as target values — actual ramp from 10% happens via soft-start slew in LedcDriver
-        ledcDriver.setChannels(b, w, uv);
-        ledcDriver.setFan(fn);
-    } else {
-        ledcDriver.setFan(currentFan);
-    }
+    // Start safe at 0% output on power-on to completely prevent initial bright flashes.
+    // Holds 0% during 15s boot period while WiFi/MQTT connect or until user active command.
+    ledcDriver.setChannels(0.0f, 0.0f, 0.0f);
+    ledcDriver.setFan(0.0f);
 
     resolveTodaySchedule();
 
@@ -85,24 +82,30 @@ void ScheduleEngine::tick() {
     time_t nowEpoch = rtcManager.getEpoch();
     int secOfDay = rtcManager.getSecondsOfDay();
 
-    // Check if manual override expired by 15-minute inactivity (millis-based, works without confirmed RTC)
-    if (currentMode == "manual" && lastManualTouchMillis > 0) {
-        unsigned long nowMillis = millis();
-        // 15 minutes = 900,000 ms
-        if (nowMillis - lastManualTouchMillis >= 900000UL) {
-            Serial.println("[ENGINE] 15-min manual inactivity timeout. Returning to Auto schedule.");
-            currentMode = "auto";
-            lastManualTouchMillis = 0;
-            manualOverrideUntilEpoch = 0;
-        }
-    }
+    // Manual mode is permanent until user clicks Resume Auto or starts Acclimation
+    // (15-minute auto-timeout intentionally removed per user design preference)
 
     // Always keep today's schedule resolved
     resolveTodaySchedule();
 
+    // 0% Boot Quiet Hold: For first 15 seconds after power-on, hold outputs strictly at 0.0%
+    // so fixture is completely pitch black while WiFi connects and app transmits desired state.
+    if (bootHoldActive) {
+        if (millis() - bootStartMillis < 15000UL) {
+            ledcDriver.setChannels(0.0f, 0.0f, 0.0f);
+            ledcDriver.setFan(0.0f);
+            xSemaphoreGive(mutex);
+            return;
+        } else {
+            bootHoldActive = false;
+            Serial.println("[ENGINE] Boot quiet hold completed. Soft-starting outputs.");
+        }
+    }
+
     if (currentMode == "manual") {
         // In manual mode, targets are already set. Slew handled by LedcDriver taskFunction.
         ledcDriver.setChannels(manualValues.blue, manualValues.white, manualValues.uv);
+        ledcDriver.setFan(manualValues.fan);
     } else {
         // Only run schedule engine if time is confirmed
         if (rtcManager.isTimeConfirmed()) {
@@ -128,6 +131,19 @@ void ScheduleEngine::tick() {
 }
 
 void ScheduleEngine::resolveTodaySchedule() {
+    // If an acclimation program is active, force the targeted schedule
+    if (acclimation.active && acclimation.scheduleId.length() > 0) {
+        if (currentActiveScheduleId != acclimation.scheduleId || activeSchedule.keyframes.empty()) {
+            currentActiveScheduleId = acclimation.scheduleId;
+            if (!storageManager.loadSchedule(currentActiveScheduleId, activeSchedule)) {
+                storageManager.loadSchedule("natural_reef", activeSchedule);
+            }
+            Serial.printf("[ENGINE] Acclimation schedule active: %s (%d keyframes)\n",
+                          activeSchedule.name.c_str(), (int)activeSchedule.keyframes.size());
+        }
+        return;
+    }
+
     String todayDow = rtcManager.getDayOfWeekStr();
     String targetSchedId = weekly.mon;
 
@@ -272,6 +288,12 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
     target.white *= scale;
     target.uv    *= scale;
 
+    // Mandatory Coral Safety Rule: Automatic schedules NEVER exceed 60.0% capacity
+    const float AUTO_MAX_CAP = 60.0f;
+    target.blue  = min(target.blue,  AUTO_MAX_CAP);
+    target.white = min(target.white, AUTO_MAX_CAP);
+    target.uv    = min(target.uv,    AUTO_MAX_CAP);
+
     ledcDriver.setChannels(target.blue, target.white, target.uv);
 
     // Only apply automatic dynamic cooling fan curve if user has NOT manually adjusted the fan
@@ -284,8 +306,19 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
     }
 }
 
+void ScheduleEngine::releaseBootHold() {
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        if (bootHoldActive) {
+            bootHoldActive = false;
+            Serial.println("[ENGINE] Active user/cloud command received; released boot quiet hold.");
+        }
+        xSemaphoreGive(mutex);
+    }
+}
+
 void ScheduleEngine::setMode(const String& mode) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        bootHoldActive = false;
         currentMode = (mode == "manual") ? "manual" : "auto";
         if (currentMode == "auto") {
             manualOverrideUntilEpoch = 0;
@@ -306,6 +339,7 @@ void ScheduleEngine::setMode(const String& mode) {
 
 void ScheduleEngine::setManualChannels(float b, float w, float uv) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        bootHoldActive = false;
         currentMode = "manual";
         // Reset the 15-minute inactivity timer every time user touches a slider
         lastManualTouchMillis = millis();
@@ -322,6 +356,7 @@ void ScheduleEngine::setManualChannels(float b, float w, float uv) {
 
 void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        bootHoldActive = false;
         currentFan = constrain(fanPct, 0.0f, 100.0f);
         fanManualOverride = true; // User manually locked/adjusted fan speed
         manualValues.fan = currentFan;
@@ -335,6 +370,7 @@ void ScheduleEngine::setFan(float fanPct) {
 
 void ScheduleEngine::setMasterOn(bool on) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        bootHoldActive = false;
         ledcDriver.setMasterOn(on);
         xSemaphoreGive(mutex);
     }
@@ -352,14 +388,26 @@ void ScheduleEngine::reloadConfig() {
 
 void ScheduleEngine::startAcclimation(const String& scheduleId, float startPct, int days) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        currentMode = "auto";
+        lastManualTouchMillis = 0;
+        manualOverrideUntilEpoch = 0;
         acclimation.active = true;
         acclimation.scheduleId = scheduleId;
         acclimation.startPct = constrain(startPct, 10.0f, 95.0f);
         acclimation.daysTotal = max(days, 1);
         acclimation.startedAt = rtcManager.getNowISO();
         storageManager.saveAcclimation(acclimation);
+
+        if (scheduleId.length() > 0) {
+            currentActiveScheduleId = scheduleId;
+            storageManager.loadSchedule(currentActiveScheduleId, activeSchedule);
+        }
+
+        evaluateSchedule(rtcManager.getSecondsOfDay());
+
         xSemaphoreGive(mutex);
-        Serial.printf("[ENGINE] Acclimation started for %d days at %.1f%%\n", days, startPct);
+        Serial.printf("[ENGINE] Acclimation started for %d days at %.1f%% on schedule '%s'\n",
+                      days, startPct, scheduleId.c_str());
     }
 }
 
@@ -367,6 +415,9 @@ void ScheduleEngine::cancelAcclimation() {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         acclimation.active = false;
         storageManager.saveAcclimation(acclimation);
+        currentActiveScheduleId = "";
+        resolveTodaySchedule();
+        evaluateSchedule(rtcManager.getSecondsOfDay());
         xSemaphoreGive(mutex);
         Serial.println("[ENGINE] Acclimation cancelled");
     }
@@ -385,6 +436,7 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.cloudConnected = cloudConn;
         snap.firmwareVersion = FIRMWARE_VERSION;
         snap.masterOn = ledcDriver.isMasterOn();
+        snap.fanInverted = ledcDriver.isFanInverted();
 
         if (currentMode == "manual") {
             long rem = 0;

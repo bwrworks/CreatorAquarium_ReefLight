@@ -18,6 +18,8 @@ public:
     // Set channel percentage 0.0 - 100.0
     void setChannels(float blue, float white, float uv);
     void setFan(float fan);
+    void setFanInverted(bool inverted);
+    bool isFanInverted() const { return fanInverted; }
     void setMasterOn(bool enabled);
     bool isMasterOn() const { return masterOn; }
     bool isInitialized() const { return initialized; }
@@ -34,6 +36,7 @@ public:
 private:
     bool initialized;
     bool masterOn;
+    bool fanInverted;
     bool softStartActive;
     unsigned long bootMillis;
     ChannelValues targetValues;

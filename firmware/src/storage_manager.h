@@ -71,6 +71,9 @@ public:
     int getDisplayBrightness();
     void setDisplayBrightness(int brightness);
 
+    bool getFanInverted();
+    void setFanInverted(bool inverted);
+
     void saveLastKnownOutputs(float b, float w, float uv, float fan);
     void loadLastKnownOutputs(float& b, float& w, float& uv, float& fan);
 

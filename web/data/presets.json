@@ -1,0 +1,42 @@
+[
+  {
+    "id": "preset_natural_glow",
+    "name": "Soft Evening Glow",
+    "channels": {
+      "blue": 45,
+      "white": 10,
+      "uv": 25
+    },
+    "fan": 40
+  },
+  {
+    "id": "preset_deep_pop",
+    "name": "Ultra Actinic Pop",
+    "channels": {
+      "blue": 60,
+      "white": 0,
+      "uv": 55
+    },
+    "fan": 45
+  },
+  {
+    "id": "test_preset_coral_safe",
+    "name": "Coral Safe 50%",
+    "channels": {
+      "blue": 50,
+      "white": 20,
+      "uv": 40
+    },
+    "fan": 45
+  },
+  {
+    "id": "test_preset_coral_safe",
+    "name": "Coral Safe 50%",
+    "channels": {
+      "blue": 50,
+      "white": 20,
+      "uv": 40
+    },
+    "fan": 45
+  }
+]

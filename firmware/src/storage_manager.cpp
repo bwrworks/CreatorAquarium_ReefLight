@@ -272,6 +272,14 @@ void StorageManager::setDisplayBrightness(int brightness) {
     prefs.putInt("disp_bright", brightness);
 }
 
+bool StorageManager::getFanInverted() {
+    return prefs.getBool("fan_inv", LEDC_FAN_INVERTED_DEFAULT);
+}
+
+void StorageManager::setFanInverted(bool inverted) {
+    prefs.putBool("fan_inv", inverted);
+}
+
 void StorageManager::saveLastKnownOutputs(float b, float w, float uv, float fan) {
     prefs.putFloat("last_b", b);
     prefs.putFloat("last_w", w);

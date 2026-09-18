@@ -27,6 +27,7 @@ interface MqttContextType {
   publishChannels: (channels: Channels) => void;
   publishMode: (mode: 'auto' | 'manual') => void;
   publishFan: (fanPct: number) => void;
+  publishFanPolarity: (inverted: boolean) => void;
   publishMaster: (masterOn: boolean) => void;
   publishSchedule: (schedule: Schedule | { action: 'delete'; id: string }) => void;
   publishWeekly: (weekly: WeeklyAssignment) => void;
@@ -142,6 +143,10 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       client.on('connect', () => {
         setIsBrokerConnected(true);
         client.subscribe([stateTopic, statusTopic], { qos: 1 });
+        // Automatically sync current client ISO time to ESP32 RTC
+        const nowIso = new Date().toISOString();
+        const timePayload = JSON.stringify({ time: nowIso, iso: nowIso });
+        client.publish(`reef/${config.deviceId}/cmd/time`, timePayload, { qos: 0 });
       });
 
       client.on('close', () => {
@@ -206,6 +211,9 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       } else if (subTopic === 'fan') {
         const fn = (payload as { value: number }).value;
         setDeviceState((prev) => ({ ...prev, live: { ...prev.live, fan: fn } }));
+      } else if (subTopic === 'fanpol' || subTopic === 'fan_polarity') {
+        const inv = (payload as { inverted: boolean }).inverted;
+        setDeviceState((prev) => ({ ...prev, fanInverted: inv }));
       } else if (subTopic === 'master') {
         const m = (payload as { master: boolean }).master;
         setDeviceState((prev) => ({ ...prev, masterOn: m }));
@@ -245,12 +253,17 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
   const publishChannels = useCallback((ch: Channels) => publishCmd('channels', ch), [publishCmd]);
   const publishMode = useCallback((m: 'auto' | 'manual') => publishCmd('mode', { mode: m }), [publishCmd]);
   const publishFan = useCallback((f: number) => publishCmd('fan', { value: f }), [publishCmd]);
+  const publishFanPolarity = useCallback((inv: boolean) => publishCmd('fanpol', { inverted: inv }), [publishCmd]);
   const publishMaster = useCallback((m: boolean) => publishCmd('master', { master: m }), [publishCmd]);
   const publishSchedule = useCallback((s: Schedule | { action: 'delete'; id: string }) => publishCmd('schedule', s), [publishCmd]);
   const publishWeekly = useCallback((w: WeeklyAssignment) => publishCmd('weekly', w), [publishCmd]);
   const publishAcclimation = useCallback(
-    (p: { action: 'start'; scheduleId: string; startPct: number; days: number } | { action: 'cancel' }) =>
-      publishCmd('acclimation', p),
+    (p: { action: 'start'; scheduleId: string; startPct: number; days: number } | { action: 'cancel' }) => {
+      publishCmd('acclimation', p);
+      if (p.action === 'start') {
+        publishCmd('mode', { mode: 'auto' });
+      }
+    },
     [publishCmd]
   );
 
@@ -280,6 +293,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
         publishChannels,
         publishMode,
         publishFan,
+        publishFanPolarity,
         publishMaster,
         publishSchedule,
         publishWeekly,

@@ -31,17 +31,18 @@
 
 // =========================================================================
 // PWM / LEDC Configuration (SRS NFR-8)
+// 1000 Hz (1 kHz) prevents optocoupler/driver pulse distortion at low duty
 // =========================================================================
-#define LEDC_LED_FREQ_HZ       5000
-#define LEDC_LED_RESOLUTION    13
-#define LEDC_LED_MAX_DUTY      ((1 << LEDC_LED_RESOLUTION) - 1) // 8191
+#define LEDC_LED_FREQ_HZ       1000
+#define LEDC_LED_RESOLUTION    12
+#define LEDC_LED_MAX_DUTY      ((1 << LEDC_LED_RESOLUTION) - 1) // 4095
 
 #define LEDC_CHANNEL_BLUE1     0  // Royal Blue 1 (GPIO 18)
 #define LEDC_CHANNEL_BLUE2     1  // Royal Blue 2 (GPIO 19)
 #define LEDC_CHANNEL_WHITE     2  // Day White (GPIO 32)
 #define LEDC_CHANNEL_UV        3  // Actinic UV (GPIO 33)
 
-#define LEDC_FAN_FREQ_HZ       25000
+#define LEDC_FAN_FREQ_HZ       1000
 #define LEDC_FAN_RESOLUTION    8
 #define LEDC_FAN_MAX_DUTY      ((1 << LEDC_FAN_RESOLUTION) - 1) // 255
 #define LEDC_CHANNEL_FAN       4
@@ -92,10 +93,15 @@
 // When true: 0% brightness = LEDC_LED_MAX_DUTY (OFF), 100% brightness = 0 (FULL ON)
 #define LEDC_PWM_INVERTED      true
 
+// Fan Polarity Default: false = active-high (logic FET), true = active-low (optocoupler)
+#ifndef LEDC_FAN_INVERTED_DEFAULT
+#define LEDC_FAN_INVERTED_DEFAULT false
+#endif
+
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.2.1"
+#define FIRMWARE_VERSION       "1.2.2"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"

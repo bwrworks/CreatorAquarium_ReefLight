@@ -182,6 +182,7 @@ void MqttManager::publishState() {
     doc["cloudConnected"] = true;
     doc["firmwareVersion"] = state.firmwareVersion;
     doc["masterOn"] = state.masterOn;
+    doc["fanInverted"] = state.fanInverted;
 
     char buffer[1024];
     size_t len = serializeJson(doc, buffer, sizeof(buffer));
@@ -204,6 +205,9 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
     String cmd = topicStr.substring(prefix.length());
     lastCmdMillis = millis();
 
+    // Release boot quiet hold immediately on any cloud command
+    scheduleEngine.releaseBootHold();
+
     JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payloadStr);
 
@@ -222,7 +226,7 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             stateDirty = true;
         }
     } else if (cmd == "fan") {
-        float val = 80.0f;
+        float val = 0.0f;
         if (!err) {
             if (doc["value"].is<float>()) {
                 val = doc["value"].as<float>();
@@ -237,6 +241,19 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         val = constrain(val, 0.0f, 100.0f);
         scheduleEngine.setFan(val);
         stateDirty = true;
+    } else if (cmd == "fanpol" || cmd == "fan_polarity") {
+        bool inv = false;
+        if (!err) {
+            if (doc["inverted"].is<bool>()) inv = doc["inverted"].as<bool>();
+            else if (doc["value"].is<int>()) inv = doc["value"].as<int>() > 0;
+            else if (doc["inv"].is<bool>()) inv = doc["inv"].as<bool>();
+        } else {
+            inv = (atoi(payloadStr) > 0);
+        }
+        storageManager.setFanInverted(inv);
+        ledcDriver.setFanInverted(inv);
+        stateDirty = true;
+        Serial.printf("[MQTT CMD] Fan polarity set to %s\n", inv ? "INVERTED (Active-Low)" : "NORMAL (Active-High)");
     } else if (cmd == "master") {
         if (!err) {
             bool on = true;
@@ -283,8 +300,8 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         }
     } else if (cmd == "time") {
         // Fallback direct time push from mobile app
-        if (!err && doc["time"].is<const char*>()) {
-            String timeIso = doc["time"].as<String>();
+        if (!err && (doc["time"].is<const char*>() || doc["iso"].is<const char*>())) {
+            String timeIso = doc["time"].is<const char*>() ? doc["time"].as<String>() : doc["iso"].as<String>();
             rtcManager.setTimeFromISO(timeIso);
             stateDirty = true;
         }
