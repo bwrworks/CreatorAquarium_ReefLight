@@ -183,6 +183,8 @@ void MqttManager::publishState() {
     doc["firmwareVersion"] = state.firmwareVersion;
     doc["masterOn"] = state.masterOn;
     doc["fanInverted"] = state.fanInverted;
+    doc["fanManualOverride"] = state.fanManualOverride;
+    doc["displayBrightness"] = state.displayBrightness;
 
     char buffer[1024];
     size_t len = serializeJson(doc, buffer, sizeof(buffer));
@@ -254,6 +256,19 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         ledcDriver.setFanInverted(inv);
         stateDirty = true;
         Serial.printf("[MQTT CMD] Fan polarity set to %s\n", inv ? "INVERTED (Active-Low)" : "NORMAL (Active-High)");
+    } else if (cmd == "display" || cmd == "display_brightness") {
+        int bright = 255;
+        if (!err) {
+            if (doc["brightness"].is<int>()) bright = doc["brightness"].as<int>();
+            else if (doc["value"].is<int>()) bright = doc["value"].as<int>();
+            else if (doc.is<int>()) bright = doc.as<int>();
+        } else {
+            bright = atoi(payloadStr);
+        }
+        bright = constrain(bright, 0, 255);
+        scheduleEngine.setDisplayBrightness(bright);
+        stateDirty = true;
+        Serial.printf("[MQTT CMD] Display brightness set to %d\n", bright);
     } else if (cmd == "master") {
         if (!err) {
             bool on = true;

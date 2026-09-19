@@ -280,6 +280,22 @@ void StorageManager::setFanInverted(bool inverted) {
     prefs.putBool("fan_inv", inverted);
 }
 
+bool StorageManager::getFanManualOverride() {
+    return prefs.getBool("fan_man_ovr", false);
+}
+
+void StorageManager::setFanManualOverride(bool override) {
+    prefs.putBool("fan_man_ovr", override);
+}
+
+void StorageManager::saveMode(const String& mode) {
+    prefs.putString("saved_mode", mode);
+}
+
+String StorageManager::loadSavedMode() {
+    return prefs.getString("saved_mode", "auto");
+}
+
 void StorageManager::saveLastKnownOutputs(float b, float w, float uv, float fan) {
     prefs.putFloat("last_b", b);
     prefs.putFloat("last_w", w);

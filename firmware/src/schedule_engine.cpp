@@ -1,4 +1,5 @@
 #include "schedule_engine.h"
+#include "oled_display.h"
 
 ScheduleEngine scheduleEngine;
 
@@ -14,6 +15,9 @@ ScheduleEngine::ScheduleEngine()
       currentActiveScheduleId("natural_reef"),
       lastNvsSaveMillis(0),
       pendingNvsSave(false),
+      currentDisplayBrightness(255),
+      pendingDisplayNvsSave(false),
+      lastDisplayTouchMillis(0),
       tickCount(0) {
     manualValues = {0.0f, 0.0f, 0.0f, 0.0f};
 }
@@ -27,6 +31,19 @@ void ScheduleEngine::begin() {
     storageManager.loadWeeklyAssignment(weekly);
     storageManager.loadAcclimation(acclimation);
     ledcDriver.setFanInverted(storageManager.getFanInverted());
+
+    // Restore last known outputs, mode, fan manual override, and display brightness from NVS
+    float b, w, uv, fan;
+    storageManager.loadLastKnownOutputs(b, w, uv, fan);
+    manualValues = {b, w, uv, fan};
+    currentMode = storageManager.loadSavedMode();
+    currentFan = fan;
+    fanManualOverride = storageManager.getFanManualOverride();
+    currentDisplayBrightness = storageManager.getDisplayBrightness();
+    oledDisplay.setBrightness((uint8_t)currentDisplayBrightness);
+
+    Serial.printf("[ENGINE] Restored NVS state: Mode=%s, Outputs=(B:%.1f, W:%.1f, UV:%.1f, Fan:%.1f), FanOverride=%s, DispBright=%d\n",
+                  currentMode.c_str(), b, w, uv, fan, fanManualOverride ? "YES" : "NO", currentDisplayBrightness);
 
     // Start safe at 0% output on power-on to completely prevent initial bright flashes.
     // Holds 0% during 15s boot period while WiFi/MQTT connect or until user active command.
@@ -99,6 +116,12 @@ void ScheduleEngine::tick() {
         } else {
             bootHoldActive = false;
             Serial.println("[ENGINE] Boot quiet hold completed. Soft-starting outputs.");
+            if (currentMode == "manual") {
+                ledcDriver.setChannels(manualValues.blue, manualValues.white, manualValues.uv);
+                ledcDriver.setFan(manualValues.fan);
+            } else if (fanManualOverride) {
+                ledcDriver.setFan(currentFan);
+            }
         }
     }
 
@@ -118,6 +141,13 @@ void ScheduleEngine::tick() {
     if (pendingNvsSave && (nowMillis2 - lastManualTouchMillis >= 3000UL)) {
         pendingNvsSave = false;
         storageManager.saveLastKnownOutputs(manualValues.blue, manualValues.white, manualValues.uv, manualValues.fan);
+    }
+
+    // Defer display brightness NVS write until 3 seconds after adjustment stops
+    if (pendingDisplayNvsSave && (nowMillis2 - lastDisplayTouchMillis >= 3000UL)) {
+        pendingDisplayNvsSave = false;
+        storageManager.setDisplayBrightness(currentDisplayBrightness);
+        Serial.printf("[ENGINE] Persisted display brightness %d to NVS\n", currentDisplayBrightness);
     }
 
     // Periodically save current applied outputs to NVS (every 5 minutes) for power outage recovery
@@ -319,10 +349,17 @@ void ScheduleEngine::releaseBootHold() {
 void ScheduleEngine::setMode(const String& mode) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         bootHoldActive = false;
-        currentMode = (mode == "manual") ? "manual" : "auto";
+        String targetMode = (mode == "manual") ? "manual" : "auto";
+        if (currentMode != targetMode) {
+            currentMode = targetMode;
+            storageManager.saveMode(currentMode);
+        }
         if (currentMode == "auto") {
             manualOverrideUntilEpoch = 0;
-            fanManualOverride = false; // Reset manual override when user resumes auto
+            if (fanManualOverride) {
+                fanManualOverride = false;
+                storageManager.setFanManualOverride(false);
+            }
             // Instantly evaluate current schedule output without waiting for next tick
             if (rtcManager.isTimeConfirmed()) {
                 evaluateSchedule(rtcManager.getSecondsOfDay());
@@ -340,7 +377,12 @@ void ScheduleEngine::setMode(const String& mode) {
 void ScheduleEngine::setManualChannels(float b, float w, float uv) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         bootHoldActive = false;
-        currentMode = "manual";
+        // Guarded mode transition: only write to NVS when mode actually flips (auto -> manual)
+        // Never call storageManager.saveMode on high-frequency slider drag ticks
+        if (currentMode != "manual") {
+            currentMode = "manual";
+            storageManager.saveMode("manual");
+        }
         // Reset the 15-minute inactivity timer every time user touches a slider
         lastManualTouchMillis = millis();
         manualOverrideUntilEpoch = 0; // Not epoch-based; uses millis inactivity instead
@@ -358,12 +400,28 @@ void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         bootHoldActive = false;
         currentFan = constrain(fanPct, 0.0f, 100.0f);
-        fanManualOverride = true; // User manually locked/adjusted fan speed
+        // Guarded fan manual override: only write to NVS when flag actually flips
+        if (!fanManualOverride) {
+            fanManualOverride = true;
+            storageManager.setFanManualOverride(true);
+        }
         manualValues.fan = currentFan;
         ledcDriver.disableSoftStart();
         ledcDriver.setFan(currentFan);
         lastManualTouchMillis = millis();
         pendingNvsSave = true;
+        xSemaphoreGive(mutex);
+    }
+}
+
+void ScheduleEngine::setDisplayBrightness(int brightness) {
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+        currentDisplayBrightness = constrain(brightness, 0, 255);
+        // Hardware LEDC PWM updates immediately for 0-latency live slider response
+        oledDisplay.setBrightness((uint8_t)currentDisplayBrightness);
+        // Defer NVS write so flash is not written during slider dragging
+        pendingDisplayNvsSave = true;
+        lastDisplayTouchMillis = millis();
         xSemaphoreGive(mutex);
     }
 }
@@ -388,7 +446,10 @@ void ScheduleEngine::reloadConfig() {
 
 void ScheduleEngine::startAcclimation(const String& scheduleId, float startPct, int days) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
-        currentMode = "auto";
+        if (currentMode != "auto") {
+            currentMode = "auto";
+            storageManager.saveMode("auto");
+        }
         lastManualTouchMillis = 0;
         manualOverrideUntilEpoch = 0;
         acclimation.active = true;
@@ -437,6 +498,8 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.firmwareVersion = FIRMWARE_VERSION;
         snap.masterOn = ledcDriver.isMasterOn();
         snap.fanInverted = ledcDriver.isFanInverted();
+        snap.fanManualOverride = fanManualOverride;
+        snap.displayBrightness = currentDisplayBrightness;
 
         if (currentMode == "manual") {
             long rem = 0;

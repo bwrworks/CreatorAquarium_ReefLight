@@ -55,8 +55,10 @@ OledDisplayManager::OledDisplayManager()
 }
 
 bool OledDisplayManager::begin() {
-    pinMode(TFT_LED, OUTPUT);
-    digitalWrite(TFT_LED, HIGH);
+    // Configure TFT Backlight PWM channel (5 kHz, 8-bit on GPIO 26)
+    ledcSetup(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_FREQ_HZ, LEDC_DISPLAY_RESOLUTION);
+    ledcAttachPin(TFT_LED, LEDC_CHANNEL_DISPLAY);
+    ledcWrite(LEDC_CHANNEL_DISPLAY, 255);
 
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
     tftSPI.setFrequency(8000000); // 8MHz for signal stability
@@ -109,7 +111,7 @@ bool OledDisplayManager::begin() {
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
     if (!displayPresent) return;
-    digitalWrite(TFT_LED, brightness > 10 ? HIGH : LOW);
+    ledcWrite(LEDC_CHANNEL_DISPLAY, brightness);
 }
 
 // =========================================================================

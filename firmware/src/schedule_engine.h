@@ -22,6 +22,8 @@ struct DeviceStateSnapshot {
     String firmwareVersion;
     bool masterOn;
     bool fanInverted;
+    bool fanManualOverride;
+    int displayBrightness;
 };
 
 class ScheduleEngine {
@@ -40,6 +42,8 @@ public:
     void setManualChannels(float b, float w, float uv);
     void setFan(float fanPct);
     void setMasterOn(bool on);
+    void setDisplayBrightness(int brightness);
+    int getDisplayBrightness() const { return currentDisplayBrightness; }
 
     // Force reload of active schedule / weekly map from storage
     void reloadConfig();
@@ -78,6 +82,9 @@ private:
 
     unsigned long lastNvsSaveMillis;
     bool pendingNvsSave;
+    int currentDisplayBrightness;
+    bool pendingDisplayNvsSave;
+    unsigned long lastDisplayTouchMillis;
     volatile uint32_t tickCount;
 
     void evaluateSchedule(int secOfDay);

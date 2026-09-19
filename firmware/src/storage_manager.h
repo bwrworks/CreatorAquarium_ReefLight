@@ -74,6 +74,12 @@ public:
     bool getFanInverted();
     void setFanInverted(bool inverted);
 
+    bool getFanManualOverride();
+    void setFanManualOverride(bool override);
+
+    void saveMode(const String& mode);
+    String loadSavedMode();
+
     void saveLastKnownOutputs(float b, float w, float uv, float fan);
     void loadLastKnownOutputs(float& b, float& w, float& uv, float& fan);
 

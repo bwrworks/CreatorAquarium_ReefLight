@@ -174,6 +174,14 @@ void processSerialCommand(const String& cmd) {
         return;
     }
 
+    if (c.startsWith("disp ")) {
+        int val = c.substring(5).toInt();
+        val = constrain(val, 0, 255);
+        scheduleEngine.setDisplayBrightness(val);
+        Serial.printf("[CLI] Display brightness set to: %d\n", val);
+        return;
+    }
+
     if (c.equalsIgnoreCase("resetwifi")) {
         WiFiManager wm;
         wm.resetSettings();
@@ -183,7 +191,7 @@ void processSerialCommand(const String& cmd) {
         return;
     }
 
-    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <uv> | fan <pct> | fanpol normal/invert | master on/off | time <ISO> | resetwifi");
+    Serial.println("[CLI] Commands: status | auto | manual | set <b> <w> <uv> | fan <pct> | fanpol normal/invert | disp <0..255> | master on/off | time <ISO> | resetwifi");
 }
 
 void setup() {
