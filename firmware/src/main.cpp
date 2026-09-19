@@ -238,6 +238,7 @@ void setup() {
 
     // 3. Initialize Flash Storage (LittleFS and NVS Preferences)
     storageManager.begin();
+    oledDisplay.setBrightness((uint8_t)storageManager.getDisplayBrightness());
 
     // 4. Initialize OTA Manager and boot verification
     otaManager.begin();

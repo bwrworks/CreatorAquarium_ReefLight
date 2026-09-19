@@ -40,7 +40,6 @@ void ScheduleEngine::begin() {
     currentFan = fan;
     fanManualOverride = storageManager.getFanManualOverride();
     currentDisplayBrightness = storageManager.getDisplayBrightness();
-    oledDisplay.setBrightness((uint8_t)currentDisplayBrightness);
 
     Serial.printf("[ENGINE] Restored NVS state: Mode=%s, Outputs=(B:%.1f, W:%.1f, UV:%.1f, Fan:%.1f), FanOverride=%s, DispBright=%d\n",
                   currentMode.c_str(), b, w, uv, fan, fanManualOverride ? "YES" : "NO", currentDisplayBrightness);
