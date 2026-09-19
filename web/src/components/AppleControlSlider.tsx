@@ -106,14 +106,14 @@ export function AppleControlSlider({
       const dx = Math.abs(e.clientX - touchStartPos.current.x);
       const dy = Math.abs(e.clientY - touchStartPos.current.y);
 
-      // If vertical movement occurs (>3px), immediately lock to page scroll
-      if (dy > 3) {
+      // If clear vertical scroll gesture occurs, lock to page scroll
+      if (dy > 12 && dy > dx * 1.5) {
         gestureState.current = 'scrolling';
         return;
       }
 
-      // Only engage slider if user moves horizontally by >=20px with clear horizontal intent
-      if (dx >= 20 && dx > dy * 3.0) {
+      // Engage slider smoothly on first swipe: >=8px horizontal movement with clear horizontal dominance
+      if (dx >= 8 && dx > dy * 1.5) {
         gestureState.current = 'dragging';
         isDraggingRef.current = true;
         setIsDragging(true);

@@ -44,6 +44,8 @@ export type DeviceState = {
   firmwareVersion: string;
   masterOn?: boolean;
   fanInverted?: boolean;
+  fanManualOverride?: boolean;
+  displayBrightness?: number;
 };
 
 export type MqttConfig = {

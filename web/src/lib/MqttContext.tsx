@@ -28,6 +28,7 @@ interface MqttContextType {
   publishMode: (mode: 'auto' | 'manual') => void;
   publishFan: (fanPct: number) => void;
   publishFanPolarity: (inverted: boolean) => void;
+  publishDisplayBrightness: (brightness: number) => void;
   publishMaster: (masterOn: boolean) => void;
   publishSchedule: (schedule: Schedule | { action: 'delete'; id: string }) => void;
   publishWeekly: (weekly: WeeklyAssignment) => void;
@@ -214,6 +215,9 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       } else if (subTopic === 'fanpol' || subTopic === 'fan_polarity') {
         const inv = (payload as { inverted: boolean }).inverted;
         setDeviceState((prev) => ({ ...prev, fanInverted: inv }));
+      } else if (subTopic === 'display' || subTopic === 'display_brightness') {
+        const b = (payload as { brightness?: number; value?: number }).brightness ?? (payload as { brightness?: number; value?: number }).value ?? 255;
+        setDeviceState((prev) => ({ ...prev, displayBrightness: b }));
       } else if (subTopic === 'master') {
         const m = (payload as { master: boolean }).master;
         setDeviceState((prev) => ({ ...prev, masterOn: m }));
@@ -254,6 +258,13 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
   const publishMode = useCallback((m: 'auto' | 'manual') => publishCmd('mode', { mode: m }), [publishCmd]);
   const publishFan = useCallback((f: number) => publishCmd('fan', { value: f }), [publishCmd]);
   const publishFanPolarity = useCallback((inv: boolean) => publishCmd('fanpol', { inverted: inv }), [publishCmd]);
+  const publishDisplayBrightness = useCallback(
+    (brightness: number) => {
+      const b = Math.max(0, Math.min(255, Math.round(brightness)));
+      publishCmd('display', { brightness: b });
+    },
+    [publishCmd]
+  );
   const publishMaster = useCallback((m: boolean) => publishCmd('master', { master: m }), [publishCmd]);
   const publishSchedule = useCallback((s: Schedule | { action: 'delete'; id: string }) => publishCmd('schedule', s), [publishCmd]);
   const publishWeekly = useCallback((w: WeeklyAssignment) => publishCmd('weekly', w), [publishCmd]);
@@ -294,6 +305,7 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
         publishMode,
         publishFan,
         publishFanPolarity,
+        publishDisplayBrightness,
         publishMaster,
         publishSchedule,
         publishWeekly,
