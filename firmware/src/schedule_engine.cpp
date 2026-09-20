@@ -12,7 +12,7 @@ ScheduleEngine::ScheduleEngine()
       fanManualOverride(false),
       bootHoldActive(true),
       bootStartMillis(0),
-      currentActiveScheduleId("natural_reef"),
+      currentActiveScheduleId("reef_growth"),
       lastNvsSaveMillis(0),
       pendingNvsSave(false),
       currentDisplayBrightness(255),
@@ -165,7 +165,7 @@ void ScheduleEngine::resolveTodaySchedule() {
         if (currentActiveScheduleId != acclimation.scheduleId || activeSchedule.keyframes.empty()) {
             currentActiveScheduleId = acclimation.scheduleId;
             if (!storageManager.loadSchedule(currentActiveScheduleId, activeSchedule)) {
-                storageManager.loadSchedule("natural_reef", activeSchedule);
+                storageManager.loadSchedule("reef_growth", activeSchedule);
             }
             Serial.printf("[ENGINE] Acclimation schedule active: %s (%d keyframes)\n",
                           activeSchedule.name.c_str(), (int)activeSchedule.keyframes.size());
@@ -184,11 +184,19 @@ void ScheduleEngine::resolveTodaySchedule() {
     else if (todayDow == "sat") targetSchedId = weekly.sat;
     else if (todayDow == "sun") targetSchedId = weekly.sun;
 
-    if (targetSchedId != currentActiveScheduleId || activeSchedule.keyframes.empty()) {
+    static String lastResolvedDow = "";
+    static int lastResolvedWeek = -1;
+    time_t nowSec = rtcManager.getEpoch();
+    int currentWeekNum = (nowSec >= 1791072000ULL) ? 3 : ((nowSec >= 1790467200ULL) ? 2 : 1);
+    bool forceRefresh = (todayDow != lastResolvedDow) || (currentWeekNum != lastResolvedWeek);
+
+    if (forceRefresh || targetSchedId != currentActiveScheduleId || activeSchedule.keyframes.empty()) {
+        lastResolvedDow = todayDow;
+        lastResolvedWeek = currentWeekNum;
         currentActiveScheduleId = targetSchedId;
         if (!storageManager.loadSchedule(currentActiveScheduleId, activeSchedule)) {
-            Serial.printf("[ENGINE] Failed to load schedule '%s', falling back to 'natural_reef'\n", currentActiveScheduleId.c_str());
-            storageManager.loadSchedule("natural_reef", activeSchedule);
+            Serial.printf("[ENGINE] Failed to load schedule '%s', falling back to 'reef_growth'\n", currentActiveScheduleId.c_str());
+            storageManager.loadSchedule("reef_growth", activeSchedule);
         }
         Serial.printf("[ENGINE] Active schedule for %s set to: %s (%d keyframes)\n",
                       todayDow.c_str(), activeSchedule.name.c_str(), (int)activeSchedule.keyframes.size());

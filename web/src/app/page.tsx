@@ -38,25 +38,25 @@ interface Preset {
 
 const QUICK_PRESETS: Preset[] = [
   {
-    id: 'daylight',
-    name: 'Daylight Peak',
+    id: 'week_1_peak',
+    name: 'Week 1 Peak',
     icon: Sun,
-    channels: { blue: 85, white: 55, uv: 70 },
-    fan: 75,
+    channels: { blue: 20, white: 12, uv: 6 },
+    fan: 40,
   },
   {
-    id: 'coral_pop',
-    name: 'Actinic Pop',
+    id: 'week_2_peak',
+    name: 'Week 2 Peak',
+    icon: Sun,
+    channels: { blue: 25, white: 15, uv: 8 },
+    fan: 45,
+  },
+  {
+    id: 'week_3_peak',
+    name: 'Week 3 Peak',
     icon: Sparkles,
-    channels: { blue: 95, white: 15, uv: 100 },
-    fan: 65,
-  },
-  {
-    id: 'moonlight',
-    name: 'Moonlight',
-    icon: Moon,
-    channels: { blue: 8, white: 0, uv: 5 },
-    fan: 30,
+    channels: { blue: 30, white: 18, uv: 10 },
+    fan: 50,
   },
   {
     id: 'all_off',
@@ -455,7 +455,7 @@ export default function HomePage() {
               )}
             </div>
             <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {isManual ? 'Manual Control Active' : (deviceState.activeScheduleId === 'natural_reef' ? 'Natural Reef Daylight' : 'Custom Daily Curve')}
+              {isManual ? 'Manual Control Active' : (deviceState.activeScheduleId?.startsWith('reef_growth') ? 'Reef Growth Daylight' : (deviceState.activeScheduleId === 'natural_reef' ? 'Natural Reef Daylight' : 'Custom Daily Curve'))}
             </div>
           </div>
 

@@ -20,45 +20,95 @@ import {
   Sliders,
 } from 'lucide-react';
 
+const REEF_GROWTH_W1: Keyframe[] = [
+  { time: '00:00', blue: 0, white: 0, uv: 0 },
+  { time: '15:29', blue: 0, white: 0, uv: 0 },
+  { time: '15:30', blue: 1, white: 0, uv: 0 },
+  { time: '16:00', blue: 7, white: 2, uv: 2 },
+  { time: '16:30', blue: 13, white: 5, uv: 4 },
+  { time: '17:00', blue: 20, white: 12, uv: 6 },
+  { time: '20:00', blue: 20, white: 12, uv: 6 },
+  { time: '20:30', blue: 13, white: 5, uv: 4 },
+  { time: '21:00', blue: 7, white: 2, uv: 2 },
+  { time: '21:30', blue: 0, white: 0, uv: 0 },
+  { time: '23:59', blue: 0, white: 0, uv: 0 },
+];
+
+const REEF_GROWTH_W2: Keyframe[] = [
+  { time: '00:00', blue: 0, white: 0, uv: 0 },
+  { time: '15:29', blue: 0, white: 0, uv: 0 },
+  { time: '15:30', blue: 2, white: 0, uv: 0 },
+  { time: '16:00', blue: 8, white: 2, uv: 3 },
+  { time: '16:30', blue: 17, white: 7, uv: 5 },
+  { time: '17:00', blue: 25, white: 15, uv: 8 },
+  { time: '20:00', blue: 25, white: 15, uv: 8 },
+  { time: '20:30', blue: 17, white: 7, uv: 5 },
+  { time: '21:00', blue: 8, white: 2, uv: 3 },
+  { time: '21:30', blue: 0, white: 0, uv: 0 },
+  { time: '23:59', blue: 0, white: 0, uv: 0 },
+];
+
+const REEF_GROWTH_W3: Keyframe[] = [
+  { time: '00:00', blue: 0, white: 0, uv: 0 },
+  { time: '15:29', blue: 0, white: 0, uv: 0 },
+  { time: '15:30', blue: 2, white: 0, uv: 0 },
+  { time: '16:00', blue: 10, white: 3, uv: 3 },
+  { time: '16:30', blue: 20, white: 8, uv: 6 },
+  { time: '17:00', blue: 30, white: 18, uv: 10 },
+  { time: '20:00', blue: 30, white: 18, uv: 10 },
+  { time: '20:30', blue: 20, white: 8, uv: 6 },
+  { time: '21:00', blue: 10, white: 3, uv: 3 },
+  { time: '21:30', blue: 0, white: 0, uv: 0 },
+  { time: '23:59', blue: 0, white: 0, uv: 0 },
+];
+
+function getReefGrowthStage(): { keyframes: Keyframe[]; weekNum: number; weekLabel: string; daysElapsed: number } {
+  const startEpoch = 1789862400000; // 2026-09-20T00:00:00 UTC
+  const now = Date.now();
+  const daysElapsed = Math.max(0, Math.floor((now - startEpoch) / (86400 * 1000)));
+
+  if (daysElapsed < 7) {
+    return { keyframes: REEF_GROWTH_W1, weekNum: 1, weekLabel: 'Week 1', daysElapsed };
+  } else if (daysElapsed < 14) {
+    return { keyframes: REEF_GROWTH_W2, weekNum: 2, weekLabel: 'Week 2', daysElapsed };
+  } else {
+    return { keyframes: REEF_GROWTH_W3, weekNum: 3, weekLabel: 'Week 3 Onward', daysElapsed };
+  }
+}
+
+const currentRgStage = getReefGrowthStage();
+
 const DEFAULT_SCHEDULES: Schedule[] = [
   {
-    id: 'natural_reef',
-    name: 'Natural Reef Daylight',
-    keyframes: [
-      { time: '00:00', blue: 0, white: 0, uv: 0 },
-      { time: '07:30', blue: 0, white: 0, uv: 0 },
-      { time: '09:00', blue: 35, white: 10, uv: 15 },
-      { time: '12:00', blue: 80, white: 50, uv: 65 },
-      { time: '15:00', blue: 85, white: 55, uv: 70 },
-      { time: '18:00', blue: 70, white: 25, uv: 50 },
-      { time: '20:30', blue: 40, white: 0, uv: 30 },
-      { time: '22:00', blue: 5, white: 0, uv: 0 },
-      { time: '23:00', blue: 0, white: 0, uv: 0 },
-    ],
+    id: 'reef_growth',
+    name: `Reef Growth (${currentRgStage.weekLabel})`,
+    keyframes: currentRgStage.keyframes,
   },
   {
-    id: 'deep_coral_pop',
-    name: 'High Fluorescent Actinic Pop',
-    keyframes: [
-      { time: '00:00', blue: 0, white: 0, uv: 0 },
-      { time: '09:00', blue: 0, white: 0, uv: 0 },
-      { time: '11:00', blue: 70, white: 5, uv: 80 },
-      { time: '15:00', blue: 95, white: 15, uv: 100 },
-      { time: '19:00', blue: 85, white: 5, uv: 90 },
-      { time: '22:00', blue: 10, white: 0, uv: 0 },
-      { time: '23:00', blue: 0, white: 0, uv: 0 },
-    ],
+    id: 'reef_growth_w1',
+    name: 'Week 1 (15:30-21:30)',
+    keyframes: REEF_GROWTH_W1,
+  },
+  {
+    id: 'reef_growth_w2',
+    name: 'Week 2 (15:30-21:30)',
+    keyframes: REEF_GROWTH_W2,
+  },
+  {
+    id: 'reef_growth_w3',
+    name: 'Week 3 Onward (15:30-21:30)',
+    keyframes: REEF_GROWTH_W3,
   },
 ];
 
 const DEFAULT_WEEKLY: WeeklyAssignment = {
-  mon: 'natural_reef',
-  tue: 'natural_reef',
-  wed: 'natural_reef',
-  thu: 'natural_reef',
-  fri: 'natural_reef',
-  sat: 'natural_reef',
-  sun: 'natural_reef',
+  mon: 'reef_growth',
+  tue: 'reef_growth',
+  wed: 'reef_growth',
+  thu: 'reef_growth',
+  fri: 'reef_growth',
+  sat: 'reef_growth',
+  sun: 'reef_growth',
 };
 
 const DAYS: { key: keyof WeeklyAssignment; label: string; full: string }[] = [
@@ -94,7 +144,14 @@ export default function UnifiedSchedulePage() {
       const saved = localStorage.getItem('reef_schedules');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const allowedIds = ['reef_growth', 'reef_growth_w1', 'reef_growth_w2', 'reef_growth_w3'];
+            const userCustom = parsed.filter((s: Schedule) => !allowedIds.includes(s.id) && s.id !== 'natural_reef' && s.id !== 'deep_coral_pop');
+            const merged = [...DEFAULT_SCHEDULES, ...userCustom];
+            localStorage.setItem('reef_schedules', JSON.stringify(merged));
+            return merged;
+          }
         } catch {}
       }
     }
@@ -102,14 +159,14 @@ export default function UnifiedSchedulePage() {
   });
 
   // Daily Curve Tab state
-  const [activeScheduleId, setActiveScheduleId] = useState<string>('natural_reef');
-  const [scrubberSec, setScrubberSec] = useState<number>(12 * 3600);
+  const [activeScheduleId, setActiveScheduleId] = useState<string>('reef_growth');
+  const [scrubberSec, setScrubberSec] = useState<number>(18 * 3600); // Default to 18:00 (peak photoperiod)
   const [dailySavedSuccess, setDailySavedSuccess] = useState<boolean>(false);
   const [showAddKf, setShowAddKf] = useState<boolean>(false);
-  const [newKfTime, setNewKfTime] = useState<string>('14:00');
-  const [newKfBlue, setNewKfBlue] = useState<number>(70);
-  const [newKfWhite, setNewKfWhite] = useState<number>(30);
-  const [newKfUv, setNewKfUv] = useState<number>(50);
+  const [newKfTime, setNewKfTime] = useState<string>('17:00');
+  const [newKfBlue, setNewKfBlue] = useState<number>(20);
+  const [newKfWhite, setNewKfWhite] = useState<number>(12);
+  const [newKfUv, setNewKfUv] = useState<number>(6);
 
   // Weekly Plan Tab state
   const [weekly, setWeekly] = useState<WeeklyAssignment>(() => {
@@ -117,7 +174,17 @@ export default function UnifiedSchedulePage() {
       const saved = localStorage.getItem('reef_weekly');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            const cleanWeekly = { ...DEFAULT_WEEKLY };
+            (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as (keyof WeeklyAssignment)[]).forEach((d) => {
+              if (parsed[d] && parsed[d] !== 'natural_reef' && parsed[d] !== 'deep_coral_pop') {
+                cleanWeekly[d] = parsed[d];
+              }
+            });
+            localStorage.setItem('reef_weekly', JSON.stringify(cleanWeekly));
+            return cleanWeekly;
+          }
         } catch {}
       }
     }
@@ -126,7 +193,7 @@ export default function UnifiedSchedulePage() {
   const [weeklySavedSuccess, setWeeklySavedSuccess] = useState<boolean>(false);
 
   // Acclimation Tab state
-  const [accTargetSchedule, setAccTargetSchedule] = useState<string>('natural_reef');
+  const [accTargetSchedule, setAccTargetSchedule] = useState<string>('reef_growth');
   const [accStartPct, setAccStartPct] = useState<number>(50);
   const [accDaysTotal, setAccDaysTotal] = useState<number>(14);
 
@@ -320,6 +387,33 @@ export default function UnifiedSchedulePage() {
                   {s.name}
                 </button>
               ))}
+            </div>
+
+            {/* Multi-Week Progression Banner */}
+            <div
+              style={{
+                marginTop: '0.75rem',
+                padding: '0.65rem 0.85rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.55rem',
+                fontSize: '0.72rem',
+                color: '#38bdf8',
+                lineHeight: 1.4,
+              }}
+            >
+              <Sparkles size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong>Reef Growth 3-Week Progression (15:30 to 21:30 Linear Ramps):</strong>
+                <div style={{ color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                  • <strong>Week 1 (Today, Sep 20 – Sep 26):</strong> Peak 20% Blue / 12% White / 6% UV<br />
+                  • <strong>Week 2 (Starts Sep 27):</strong> Peak 25% Blue / 15% White / 8% UV<br />
+                  • <strong>Week 3 Onward (Starts Oct 04):</strong> Peak 30% Blue / 18% White / 10% UV
+                </div>
+              </div>
             </div>
           </div>
 

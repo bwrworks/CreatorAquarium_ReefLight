@@ -304,7 +304,7 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         if (!err) {
             String action = doc["action"] | "";
             if (action == "start") {
-                String schedId = doc["scheduleId"] | "natural_reef";
+                String schedId = doc["scheduleId"] | "reef_growth";
                 float startPct = doc["startPct"] | 50.0f;
                 int days = doc["days"] | 14;
                 scheduleEngine.startAcclimation(schedId, startPct, days);

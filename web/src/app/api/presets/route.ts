@@ -6,24 +6,37 @@ const PRESETS_FILE = path.join(process.cwd(), 'data', 'presets.json');
 
 const defaultCustomPresets = [
   {
-    id: 'preset_natural_glow',
-    name: 'Soft Evening Glow',
+    id: 'preset_week1_peak',
+    name: 'Week 1 Peak',
     channels: {
-      blue: 45,
-      white: 10,
-      uv: 25,
+      blue: 20,
+      white: 12,
+      uv: 6,
     },
     fan: 40,
+    isCustom: true,
   },
   {
-    id: 'preset_deep_pop',
-    name: 'Ultra Actinic Pop',
+    id: 'preset_week2_peak',
+    name: 'Week 2 Peak',
     channels: {
-      blue: 60,
-      white: 0,
-      uv: 55,
+      blue: 25,
+      white: 15,
+      uv: 8,
     },
     fan: 45,
+    isCustom: true,
+  },
+  {
+    id: 'preset_week3_peak',
+    name: 'Week 3 Peak',
+    channels: {
+      blue: 30,
+      white: 18,
+      uv: 10,
+    },
+    fan: 50,
+    isCustom: true,
   },
 ];
 

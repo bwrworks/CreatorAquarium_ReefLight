@@ -8,7 +8,7 @@ const defaultInitialState: DeviceState = {
   mode: 'auto',
   live: { blue: 45, white: 15, uv: 30, fan: 40 },
   manualOverrideExpiresAt: null,
-  activeScheduleId: 'natural_reef',
+  activeScheduleId: 'reef_growth',
   acclimation: null,
   time: '',
   wifiConnected: true,
