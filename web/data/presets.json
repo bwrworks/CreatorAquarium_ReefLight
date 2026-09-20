@@ -38,5 +38,19 @@
       "uv": 40
     },
     "fan": 45
+  },
+  {
+    "id": "custom_1789871437825",
+    "name": "Frag Tank Growth",
+    "icon": {
+      "displayName": "Sparkles"
+    },
+    "channels": {
+      "blue": 45,
+      "white": 15,
+      "uv": 30
+    },
+    "fan": 0,
+    "isCustom": true
   }
 ]

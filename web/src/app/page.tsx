@@ -12,7 +12,6 @@ import {
   Moon,
   Fan,
   PowerOff,
-  ShieldAlert,
   AlertTriangle,
   Lock,
   Unlock,
@@ -20,15 +19,21 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
+  Plus,
+  Trash2,
+  Save,
+  Smartphone,
+  Check,
 } from 'lucide-react';
 import { Channels } from '../lib/types';
 
 interface Preset {
   id: string;
   name: string;
-  icon: React.ElementType;
+  icon?: React.ElementType;
   channels: Channels;
   fan: number;
+  isCustom?: boolean;
 }
 
 const QUICK_PRESETS: Preset[] = [
@@ -70,12 +75,34 @@ export default function HomePage() {
     publishFan,
     publishMode,
     publishMaster,
-    isSimulated,
-    setSimulated,
+    publishDisplayBrightness,
   } = useDeviceMqtt();
 
   const isManual = deviceState.mode === 'manual';
+
+  // Hardware Power states
   const isMasterOn = deviceState.masterOn ?? true;
+  const isDisplayOn = (deviceState.displayBrightness ?? 255) > 0;
+  const isFanOn = (deviceState.live.fan ?? 40) > 0;
+
+  const lastActiveBrightnessRef = useRef<number>(
+    deviceState.displayBrightness && deviceState.displayBrightness > 0 ? deviceState.displayBrightness : 180
+  );
+  const lastActiveFanRef = useRef<number>(
+    deviceState.live.fan && deviceState.live.fan > 0 ? deviceState.live.fan : 50
+  );
+
+  useEffect(() => {
+    if (deviceState.displayBrightness && deviceState.displayBrightness > 0) {
+      lastActiveBrightnessRef.current = deviceState.displayBrightness;
+    }
+  }, [deviceState.displayBrightness]);
+
+  useEffect(() => {
+    if (deviceState.live.fan && deviceState.live.fan > 0) {
+      lastActiveFanRef.current = deviceState.live.fan;
+    }
+  }, [deviceState.live.fan]);
 
   // Local state for smooth real-time control
   const [channels, setChannels] = useState<Channels>({
@@ -86,6 +113,11 @@ export default function HomePage() {
   const [fanSpeed, setFanSpeed] = useState<number>(deviceState.live.fan ?? 40);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [remainingTimeStr, setRemainingTimeStr] = useState<string>('');
+
+  // Custom Presets State
+  const [customPresets, setCustomPresets] = useState<Preset[]>([]);
+  const [showSavePresetModal, setShowSavePresetModal] = useState<boolean>(false);
+  const [newPresetName, setNewPresetName] = useState<string>('');
 
   // Coral Safety Protection (>60% Threshold)
   const [isHighCapacityUnlocked, setIsHighCapacityUnlocked] = useState<boolean>(false);
@@ -149,6 +181,43 @@ export default function HomePage() {
 
     return () => clearInterval(interval);
   }, [deviceState.mode, deviceState.manualOverrideExpiresAt]);
+
+  // Load custom presets on mount
+  useEffect(() => {
+    const loadPresets = async () => {
+      try {
+        const stored = localStorage.getItem('reef_custom_presets');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCustomPresets(parsed);
+          }
+        }
+      } catch (e) {
+        console.error('Error reading localStorage custom presets:', e);
+      }
+
+      try {
+        const res = await fetch('/api/presets');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCustomPresets((prev) => {
+              const ids = new Set(prev.map((p) => p.id));
+              const additions = data.filter((d: any) => !ids.has(d.id));
+              const combined = [...prev, ...additions];
+              localStorage.setItem('reef_custom_presets', JSON.stringify(combined));
+              return combined;
+            });
+          }
+        }
+      } catch (e) {
+        // network fallback
+      }
+    };
+
+    loadPresets();
+  }, []);
 
   // Handler: Start dragging slider
   const handleSliderDragStart = () => {
@@ -229,7 +298,8 @@ export default function HomePage() {
 
   // Quick Preset Selection
   const handleSelectPreset = (preset: Preset) => {
-    const hasOverSafe = (preset.channels.blue > 60 || preset.channels.white > 60 || preset.channels.uv > 60);
+    const hasOverSafe =
+      preset.channels.blue > 60 || preset.channels.white > 60 || preset.channels.uv > 60;
     if (hasOverSafe && !isHighCapacityUnlocked) {
       setPendingAction({ type: 'preset', preset });
       setShowSafetyModal(true);
@@ -256,6 +326,86 @@ export default function HomePage() {
     }
   };
 
+  // Power Controls Handlers
+  const handleToggleLightPower = () => {
+    publishMaster(!isMasterOn);
+  };
+
+  const handleToggleDisplayPower = () => {
+    if (isDisplayOn) {
+      lastActiveBrightnessRef.current = deviceState.displayBrightness || 180;
+      publishDisplayBrightness(0);
+    } else {
+      publishDisplayBrightness(lastActiveBrightnessRef.current || 180);
+    }
+  };
+
+  const handleToggleFanPower = () => {
+    if (isFanOn) {
+      lastActiveFanRef.current = fanSpeed || 50;
+      publishFan(0);
+      setFanSpeed(0);
+    } else {
+      const targetFan = lastActiveFanRef.current || 50;
+      publishFan(targetFan);
+      setFanSpeed(targetFan);
+    }
+  };
+
+  // Custom Preset Handlers
+  const handleSaveCustomPreset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPresetName.trim()) return;
+
+    const newPreset: Preset = {
+      id: `custom_${Date.now()}`,
+      name: newPresetName.trim(),
+      icon: Sparkles,
+      channels: {
+        blue: Math.round(channels.blue),
+        white: Math.round(channels.white),
+        uv: Math.round(channels.uv),
+      },
+      fan: Math.round(fanSpeed),
+      isCustom: true,
+    };
+
+    const updated = [...customPresets, newPreset];
+    setCustomPresets(updated);
+    localStorage.setItem('reef_custom_presets', JSON.stringify(updated));
+    setActivePreset(newPreset.id);
+    setNewPresetName('');
+    setShowSavePresetModal(false);
+
+    try {
+      await fetch('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+    } catch (e) {
+      console.error('Failed to sync presets to /api/presets', e);
+    }
+  };
+
+  const handleDeleteCustomPreset = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = customPresets.filter((p) => p.id !== id);
+    setCustomPresets(updated);
+    localStorage.setItem('reef_custom_presets', JSON.stringify(updated));
+    if (activePreset === id) setActivePreset(null);
+
+    try {
+      await fetch('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+    } catch (e) {
+      console.error('Failed to delete preset from /api/presets', e);
+    }
+  };
+
   // Safety Modal Confirm
   const handleConfirmSafetyUnlock = () => {
     setIsHighCapacityUnlocked(true);
@@ -278,42 +428,11 @@ export default function HomePage() {
     }
   };
 
-  const displayTime = deviceState.time
-    ? new Date(deviceState.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    : '--:--:--';
+  const displayBrightnessPct = Math.round(((deviceState.displayBrightness ?? 255) / 255) * 100);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-      {/* Offline / Demo Mode Banner */}
-      {!isDeviceOnline && !isSimulated && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.75rem 1rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldAlert size={16} color="#f59e0b" />
-            <span style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 600 }}>
-              Device offline. Enable interactive demo?
-            </span>
-          </div>
-          <button
-            onClick={() => setSimulated(true)}
-            className="btn-pill"
-            style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem' }}
-          >
-            Demo Mode
-          </button>
-        </div>
-      )}
-
-      {/* Hero Control & Mode Status Card */}
+      {/* 1. Hero Control & Mode Status Card */}
       <div className="card-elevated" style={{ padding: '1.25rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div>
@@ -341,6 +460,7 @@ export default function HomePage() {
           </div>
 
           <button
+            type="button"
             onClick={handleToggleMode}
             className="btn-secondary"
             style={{
@@ -413,36 +533,210 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Live Spectral Power Distribution Visualizer */}
-      <SpectrumVisualizer channels={channels} title="Live Spectral Power Distribution" />
-
-      {/* Quick Tactile Presets */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
+      {/* 2. Hardware Power Controls Panel (Lights, Display, Fan) */}
+      <div className="card-elevated" style={{ padding: '1rem 1.15rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
           <span style={{ fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-            Instant Presets
+            Hardware Power Controls
           </span>
-          {isHighCapacityUnlocked ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: '#f59e0b', fontWeight: 600 }}>
-              <Unlock size={12} />
-              <span>Full Range Unlocked</span>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              <Lock size={12} />
-              <span>Safe Mode (Max 60%)</span>
-            </div>
-          )}
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+            Independent On/Off Relays
+          </span>
         </div>
 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+          {/* Light Master Power */}
+          <button
+            type="button"
+            onClick={handleToggleLightPower}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.85rem 0.5rem',
+              borderRadius: 'var(--radius-md)',
+              background: isMasterOn ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-surface)',
+              border: `1px solid ${isMasterOn ? 'rgba(56, 189, 248, 0.35)' : 'var(--border-subtle)'}`,
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              textAlign: 'center',
+            }}
+            id="btn-power-lights"
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: isMasterOn ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isMasterOn ? '#38bdf8' : 'var(--text-dim)',
+                boxShadow: isMasterOn ? '0 0 14px rgba(56, 189, 248, 0.45)' : 'none',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              <Power size={18} strokeWidth={2.4} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Lights Power
+              </div>
+              <div style={{ fontSize: '0.66rem', fontWeight: 600, color: isMasterOn ? '#38bdf8' : 'var(--text-dim)', marginTop: '0.1rem' }}>
+                {isMasterOn ? 'ON • Emitting' : 'OFF • Standby'}
+              </div>
+            </div>
+          </button>
+
+          {/* Display Backlight Power */}
+          <button
+            type="button"
+            onClick={handleToggleDisplayPower}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.85rem 0.5rem',
+              borderRadius: 'var(--radius-md)',
+              background: isDisplayOn ? 'rgba(168, 85, 247, 0.12)' : 'var(--bg-surface)',
+              border: `1px solid ${isDisplayOn ? 'rgba(168, 85, 247, 0.35)' : 'var(--border-subtle)'}`,
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              textAlign: 'center',
+            }}
+            id="btn-power-display"
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: isDisplayOn ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isDisplayOn ? '#a855f7' : 'var(--text-dim)',
+                boxShadow: isDisplayOn ? '0 0 14px rgba(168, 85, 247, 0.45)' : 'none',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              <Smartphone size={18} strokeWidth={2.2} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Display Screen
+              </div>
+              <div style={{ fontSize: '0.66rem', fontWeight: 600, color: isDisplayOn ? '#a855f7' : 'var(--text-dim)', marginTop: '0.1rem' }}>
+                {isDisplayOn ? `ON • ${displayBrightnessPct}%` : 'OFF • Sleep'}
+              </div>
+            </div>
+          </button>
+
+          {/* Cooling Fan Power */}
+          <button
+            type="button"
+            onClick={handleToggleFanPower}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.85rem 0.5rem',
+              borderRadius: 'var(--radius-md)',
+              background: isFanOn ? 'rgba(20, 184, 166, 0.12)' : 'var(--bg-surface)',
+              border: `1px solid ${isFanOn ? 'rgba(20, 184, 166, 0.35)' : 'var(--border-subtle)'}`,
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              textAlign: 'center',
+            }}
+            id="btn-power-fan"
+          >
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: isFanOn ? 'rgba(20, 184, 166, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isFanOn ? '#14b8a6' : 'var(--text-dim)',
+                boxShadow: isFanOn ? '0 0 14px rgba(20, 184, 166, 0.45)' : 'none',
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              }}
+            >
+              <Fan size={18} strokeWidth={2.2} className={isFanOn ? 'animate-spin-slow' : ''} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                Cooling Fan
+              </div>
+              <div style={{ fontSize: '0.66rem', fontWeight: 600, color: isFanOn ? '#14b8a6' : 'var(--text-dim)', marginTop: '0.1rem' }}>
+                {isFanOn ? `ON • ${Math.round(fanSpeed)}%` : 'OFF • Stopped'}
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Live Spectral Power Distribution Visualizer */}
+      <SpectrumVisualizer channels={channels} title="Live Spectral Power Distribution" />
+
+      {/* 4. Tactile Built-in & Custom Presets */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              Presets & Spectra
+            </span>
+            {isHighCapacityUnlocked ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', color: '#f59e0b', fontWeight: 600 }}>
+                <Unlock size={11} />
+                <span>Unlocked</span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                <Lock size={11} />
+                <span>Safe (≤60%)</span>
+              </div>
+            )}
+          </div>
+
+          {/* Save Current as Custom Preset Button */}
+          <button
+            type="button"
+            onClick={() => setShowSavePresetModal(true)}
+            className="btn-pill"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              fontSize: '0.72rem',
+              padding: '0.3rem 0.65rem',
+              color: 'var(--channel-white)',
+              borderColor: 'rgba(56, 189, 248, 0.35)',
+              background: 'rgba(56, 189, 248, 0.1)',
+            }}
+            id="btn-save-current-preset"
+          >
+            <Plus size={13} strokeWidth={2.4} />
+            <span>Save Current</span>
+          </button>
+        </div>
+
+        {/* Built-in Presets Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
           {QUICK_PRESETS.map((p) => {
-            const Icon = p.icon;
+            const Icon = p.icon || Sun;
             const isSelected = activePreset === p.id;
 
             return (
               <button
                 key={p.id}
+                type="button"
                 onClick={() => handleSelectPreset(p)}
                 style={{
                   display: 'flex',
@@ -457,18 +751,88 @@ export default function HomePage() {
                   cursor: 'pointer',
                   transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
+                id={`preset-${p.id}`}
               >
                 <Icon size={18} strokeWidth={isSelected ? 2.4 : 1.8} />
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                   {p.name}
                 </span>
               </button>
             );
           })}
         </div>
+
+        {/* Custom Saved Presets Section */}
+        {customPresets.length > 0 && (
+          <div style={{ marginTop: '0.35rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', paddingLeft: '0.25rem' }}>
+              My Custom Presets
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(135px, 1fr))', gap: '0.45rem' }}>
+              {customPresets.map((p) => {
+                const isSelected = activePreset === p.id;
+
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => handleSelectPreset(p)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.55rem 0.65rem',
+                      borderRadius: 'var(--radius-md)',
+                      background: isSelected ? 'rgba(56, 189, 248, 0.14)' : 'var(--bg-surface)',
+                      border: `1px solid ${isSelected ? 'rgba(56, 189, 248, 0.4)' : 'var(--border-subtle)'}`,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                    id={`custom-preset-${p.id}`}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0 }}>
+                      <Sparkles size={14} color={isSelected ? '#38bdf8' : 'var(--text-muted)'} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.74rem', fontWeight: 700, color: isSelected ? '#ffffff' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-dim)' }}>
+                          B{p.channels.blue} W{p.channels.white} UV{p.channels.uv} • F{p.fan}%
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteCustomPreset(p.id, e)}
+                      title="Delete preset"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-dim)',
+                        cursor: 'pointer',
+                        padding: '0.2rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '4px',
+                        marginLeft: '0.25rem',
+                        transition: 'color 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = '#f43f5e')}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-dim)')}
+                      id={`del-${p.id}`}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Hardware Control Sliders */}
+      {/* 5. Hardware Channel Control Sliders */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
           <span style={{ fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
@@ -561,52 +925,144 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Master Output Toggle Card */}
-      <div
-        className="card-elevated"
-        style={{
-          padding: '1rem 1.25rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      {/* Save Custom Preset Modal */}
+      {showSavePresetModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.25rem',
+          }}
+        >
           <div
+            className="card-elevated"
             style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: isMasterOn ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.12)',
-              color: isMasterOn ? '#10b981' : '#f43f5e',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `1px solid ${isMasterOn ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.25)'}`,
+              maxWidth: '390px',
+              width: '100%',
+              padding: '1.5rem',
+              background: 'var(--bg-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-subtle)',
             }}
           >
-            <Power size={18} strokeWidth={2.4} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
-              Master Hardware Output
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1rem' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38bdf8',
+                }}
+              >
+                <Save size={18} strokeWidth={2.4} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Save Custom Preset
+                </h3>
+                <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Save current slider outputs for instant one-tap recall
+                </p>
+              </div>
             </div>
-            <div style={{ fontSize: '0.72rem', color: isMasterOn ? '#10b981' : 'var(--text-muted)', fontWeight: 600 }}>
-              {isMasterOn ? 'Hardware Emitting' : 'All LEDs Held at 0%'}
-            </div>
+
+            <form onSubmit={handleSaveCustomPreset}>
+              {/* Preset Name Input */}
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                  Preset Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="e.g. Frag Growth, Midnight Glow"
+                  value={newPresetName}
+                  onChange={(e) => setNewPresetName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                  id="input-custom-preset-name"
+                />
+              </div>
+
+              {/* Channels Snapshot Preview */}
+              <div
+                style={{
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(0, 0, 0, 0.35)',
+                  border: '1px solid var(--border-subtle)',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <div style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                  Captured Configuration
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--channel-blue)', fontWeight: 700 }}>BLUE</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.blue)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--channel-white)', fontWeight: 700 }}>WHITE</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.white)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--channel-uv)', fontWeight: 700 }}>UV</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(channels.uv)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.62rem', color: 'var(--channel-fan)', fontWeight: 700 }}>FAN</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>{Math.round(fanSpeed)}%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowSavePresetModal(false)}
+                  className="btn-secondary"
+                  style={{ padding: '0.55rem 1rem', fontSize: '0.78rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '0.55rem 1.15rem', fontSize: '0.78rem', width: 'auto' }}
+                  id="btn-confirm-save-preset"
+                >
+                  Save Preset
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <label className="apple-toggle">
-          <input
-            type="checkbox"
-            checked={isMasterOn}
-            onChange={() => publishMaster(!isMasterOn)}
-            id="home-master-toggle"
-          />
-          <span className="apple-toggle-slider" />
-        </label>
-      </div>
+      )}
 
       {/* Coral Safety Confirmation Modal (>60% Protection) */}
       {showSafetyModal && (
@@ -667,6 +1123,7 @@ export default function HomePage() {
 
             <div style={{ display: 'flex', gap: '0.65rem' }}>
               <button
+                type="button"
                 onClick={() => {
                   setShowSafetyModal(false);
                   setPendingAction(null);
@@ -677,6 +1134,7 @@ export default function HomePage() {
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmSafetyUnlock}
                 style={{
                   flex: 1,

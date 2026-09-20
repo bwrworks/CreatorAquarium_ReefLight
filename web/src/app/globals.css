@@ -620,3 +620,16 @@ select:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 3s linear infinite;
+}
