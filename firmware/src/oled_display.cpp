@@ -55,8 +55,9 @@ OledDisplayManager::OledDisplayManager()
 }
 
 bool OledDisplayManager::begin() {
-    pinMode(TFT_LED, OUTPUT);
-    digitalWrite(TFT_LED, HIGH);
+    ledcSetup(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_FREQ_HZ, LEDC_DISPLAY_RESOLUTION);
+    ledcWrite(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_MAX_DUTY); // full brightness until real value is applied
+    ledcAttachPin(TFT_LED, LEDC_CHANNEL_DISPLAY);
 
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
     tftSPI.setFrequency(8000000); // 8MHz for signal stability
@@ -102,14 +103,14 @@ bool OledDisplayManager::begin() {
     lastViewSwitchMillis = millis();
     displayPresent = true;
 
-    Serial.printf("[TFT] ST7735 (128x128 Landscape @ 8MHz, Rot:%d) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d\n",
-                  TFT_ROTATION, TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED);
+    Serial.printf("[TFT] ST7735 (128x128 Landscape @ 8MHz, Rot:%d) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d (PWM Ch:%d)\n",
+                  TFT_ROTATION, TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED, LEDC_CHANNEL_DISPLAY);
     return true;
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
     if (!displayPresent) return;
-    digitalWrite(TFT_LED, brightness > 10 ? HIGH : LOW);
+    ledcWrite(LEDC_CHANNEL_DISPLAY, brightness);
 }
 
 // =========================================================================
