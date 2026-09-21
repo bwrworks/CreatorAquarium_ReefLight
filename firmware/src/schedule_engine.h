@@ -48,6 +48,9 @@ public:
     // Force reload of active schedule / weekly map from storage
     void reloadConfig();
 
+    // Notify that time has been confirmed (NTP, RTC, or app sync)
+    void notifyTimeConfirmed();
+
     // Release boot-hold early when app or CLI sends active command
     void releaseBootHold();
 

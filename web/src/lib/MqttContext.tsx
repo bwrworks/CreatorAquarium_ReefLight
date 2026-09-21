@@ -6,15 +6,16 @@ import { DeviceState, Channels, Schedule, WeeklyAssignment, MqttConfig } from '.
 
 const defaultInitialState: DeviceState = {
   mode: 'auto',
-  live: { blue: 45, white: 15, uv: 30, fan: 40 },
+  live: { blue: 0, white: 0, uv: 0, fan: 0 },
   manualOverrideExpiresAt: null,
   activeScheduleId: 'reef_growth',
   acclimation: null,
   time: '',
   wifiConnected: true,
   cloudConnected: true,
-  firmwareVersion: '1.1.0',
+  firmwareVersion: '1.2.6',
   masterOn: true,
+  displayBrightness: 180,
 };
 
 interface MqttContextType {

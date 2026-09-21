@@ -109,7 +109,6 @@ bool OledDisplayManager::begin() {
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
-    if (!displayPresent) return;
     ledcWrite(LEDC_CHANNEL_DISPLAY, brightness);
 }
 

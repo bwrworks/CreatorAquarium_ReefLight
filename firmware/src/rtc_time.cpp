@@ -1,6 +1,7 @@
 #include "rtc_time.h"
 #include <WiFi.h>
 #include <sys/time.h>
+#include "schedule_engine.h"
 
 RtcTimeManager rtcManager;
 
@@ -75,6 +76,7 @@ bool RtcTimeManager::syncNtp() {
         if (rtcPresent) {
             updateRtcFromSystemTime();
         }
+        scheduleEngine.notifyTimeConfirmed();
         return true;
     }
     Serial.println("[NTP] Sync timed out. Retrying in background...");
@@ -105,6 +107,7 @@ void RtcTimeManager::setTimeFromEpoch(time_t epoch) {
         updateRtcFromSystemTime();
     }
     Serial.printf("[RTC] Time updated from epoch. ISO: %s\n", getNowISO().c_str());
+    scheduleEngine.notifyTimeConfirmed();
 }
 
 bool RtcTimeManager::setTimeFromISO(const String& isoStr) {

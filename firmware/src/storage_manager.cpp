@@ -359,7 +359,9 @@ void StorageManager::setTimezoneOffset(long offsetSec) {
 }
 
 int StorageManager::getDisplayBrightness() {
-    return prefs.getInt("disp_bright", 255);
+    int b = prefs.getInt("disp_bright", 180);
+    if (b < 50) b = 180; // Always boot visible after power loss
+    return b;
 }
 
 void StorageManager::setDisplayBrightness(int brightness) {
@@ -387,7 +389,8 @@ void StorageManager::saveMode(const String& mode) {
 }
 
 String StorageManager::loadSavedMode() {
-    return prefs.getString("saved_mode", "auto");
+    // Aquarium life safety: following any power loss, controller must always resume auto schedule
+    return "auto";
 }
 
 void StorageManager::saveLastKnownOutputs(float b, float w, float uv, float fan) {
@@ -398,11 +401,16 @@ void StorageManager::saveLastKnownOutputs(float b, float w, float uv, float fan)
 }
 
 void StorageManager::loadLastKnownOutputs(float& b, float& w, float& uv, float& fan) {
-    b = prefs.getFloat("last_b", 10.0f); // Soft-start default 10%
-    w = prefs.getFloat("last_w", 10.0f);
-    uv = prefs.getFloat("last_uv", 10.0f);
-    fan = prefs.getFloat("last_fan", 80.0f);
-    if (fan < 25.0f && fan > 0.0f) fan = 40.0f; // prevent stall below 25%
+    b = prefs.getFloat("last_b", 0.0f);
+    w = prefs.getFloat("last_w", 0.0f);
+    uv = prefs.getFloat("last_uv", 0.0f);
+    fan = prefs.getFloat("last_fan", 0.0f);
+    // User constraint: if light is off, fan must stay off (0%). If on, fan must stay below 30%.
+    if (b <= 0.5f && w <= 0.5f && uv <= 0.5f) {
+        fan = 0.0f;
+    } else {
+        fan = constrain(fan, 0.0f, 28.0f);
+    }
 }
 
 bool StorageManager::isBootConfirmed() {

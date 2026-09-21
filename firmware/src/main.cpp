@@ -245,6 +245,9 @@ void setup() {
 
     // 5. Initialize Autonomous Schedule Engine (FreeRTOS Task on Core 1)
     scheduleEngine.begin();
+    if (rtcManager.isTimeConfirmed()) {
+        scheduleEngine.notifyTimeConfirmed();
+    }
 
     // 6. Connect WiFi / Provisioning
     setupWiFi();

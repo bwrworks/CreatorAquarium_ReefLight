@@ -36,13 +36,14 @@ void ScheduleEngine::begin() {
     float b, w, uv, fan;
     storageManager.loadLastKnownOutputs(b, w, uv, fan);
     manualValues = {b, w, uv, fan};
-    currentMode = storageManager.loadSavedMode();
-    currentFan = fan;
+    currentMode = "auto"; // Life safety rule: Following any power loss, controller must always boot in AUTO schedule
+    storageManager.saveMode("auto");
+    currentFan = (b <= 0.5f && w <= 0.5f && uv <= 0.5f) ? 0.0f : constrain(fan, 0.0f, 28.0f);
     fanManualOverride = storageManager.getFanManualOverride();
     currentDisplayBrightness = storageManager.getDisplayBrightness();
 
-    Serial.printf("[ENGINE] Restored NVS state: Mode=%s, Outputs=(B:%.1f, W:%.1f, UV:%.1f, Fan:%.1f), FanOverride=%s, DispBright=%d\n",
-                  currentMode.c_str(), b, w, uv, fan, fanManualOverride ? "YES" : "NO", currentDisplayBrightness);
+    Serial.printf("[ENGINE] Boot state initialized: Mode=auto, Restored Outputs=(B:%.1f, W:%.1f, UV:%.1f, Fan:%.1f), FanOverride=%s, DispBright=%d\n",
+                  b, w, uv, currentFan, fanManualOverride ? "YES" : "NO", currentDisplayBrightness);
 
     // Start safe at 0% output on power-on to completely prevent initial bright flashes.
     // Holds 0% during 15s boot period while WiFi/MQTT connect or until user active command.
@@ -118,8 +119,8 @@ void ScheduleEngine::tick() {
             if (currentMode == "manual") {
                 ledcDriver.setChannels(manualValues.blue, manualValues.white, manualValues.uv);
                 ledcDriver.setFan(manualValues.fan);
-            } else if (fanManualOverride) {
-                ledcDriver.setFan(currentFan);
+            } else if (rtcManager.isTimeConfirmed()) {
+                evaluateSchedule(secOfDay);
             }
         }
     }
@@ -337,7 +338,16 @@ void ScheduleEngine::evaluateSchedule(int secOfDay) {
     if (!fanManualOverride) {
         // 3-channel fan curve: Blue + White + UV
         float totalIntensity = (target.blue + target.white + target.uv) / 3.0f;
-        float dynamicFan = (totalIntensity > 5.0f) ? constrain(40.0f + totalIntensity * 0.6f, 40.0f, 100.0f) : 40.0f;
+        float dynamicFan = 0.0f;
+        if (totalIntensity > 0.5f) {
+            // Lights ON: Smoothly scale fan strictly below 30% as requested by user
+            // 15.0% at low light up to 28.0% at max 60% capacity
+            float progress = constrain(totalIntensity / 60.0f, 0.0f, 1.0f);
+            dynamicFan = constrain(15.0f + progress * 13.0f, 15.0f, 28.0f);
+        } else {
+            // Lights OFF: Fan stays strictly OFF (0%)
+            dynamicFan = 0.0f;
+        }
         currentFan = dynamicFan;
         ledcDriver.setFan(dynamicFan);
     }
@@ -348,6 +358,19 @@ void ScheduleEngine::releaseBootHold() {
         if (bootHoldActive) {
             bootHoldActive = false;
             Serial.println("[ENGINE] Active user/cloud command received; released boot quiet hold.");
+        }
+        xSemaphoreGive(mutex);
+    }
+}
+
+void ScheduleEngine::notifyTimeConfirmed() {
+    if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
+        Serial.println("[ENGINE] Time confirmed. Refreshing schedule and evaluating daylight curve immediately.");
+        currentActiveScheduleId = ""; // Force reload of today's schedule
+        resolveTodaySchedule();
+        if (currentMode == "auto") {
+            int secOfDay = rtcManager.getSecondsOfDay();
+            evaluateSchedule(secOfDay);
         }
         xSemaphoreGive(mutex);
     }
@@ -406,7 +429,8 @@ void ScheduleEngine::setManualChannels(float b, float w, float uv) {
 void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         bootHoldActive = false;
-        currentFan = constrain(fanPct, 0.0f, 100.0f);
+        // User constraint: keep fan below 30% (max 28%), or 0% when turned off
+        currentFan = (fanPct <= 0.0f) ? 0.0f : constrain(fanPct, 0.0f, 28.0f);
         // Guarded fan manual override: only write to NVS when flag actually flips
         if (!fanManualOverride) {
             fanManualOverride = true;

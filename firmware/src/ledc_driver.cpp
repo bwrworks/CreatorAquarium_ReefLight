@@ -124,7 +124,7 @@ void LedcDriver::updateSlew(float maxDeltaPercent) {
         return (current < target) ? (current + effectiveDelta) : (current - effectiveDelta);
     };
 
-    ChannelValues effectiveTarget = masterOn ? targetValues : ChannelValues{0.0f, 0.0f, 0.0f, targetValues.fan};
+    ChannelValues effectiveTarget = masterOn ? targetValues : ChannelValues{0.0f, 0.0f, 0.0f, 0.0f};
 
     appliedValues.blue  = stepValue(appliedValues.blue,  effectiveTarget.blue);
     appliedValues.white = stepValue(appliedValues.white, effectiveTarget.white);
@@ -155,6 +155,7 @@ void LedcDriver::applyOutputs() {
         appliedValues.blue  = 0.0f;
         appliedValues.white = 0.0f;
         appliedValues.uv    = 0.0f;
+        appliedValues.fan   = 0.0f;
     } else {
         uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
         ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);

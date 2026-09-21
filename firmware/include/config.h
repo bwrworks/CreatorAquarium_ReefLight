@@ -47,10 +47,10 @@
 #define LEDC_FAN_MAX_DUTY      ((1 << LEDC_FAN_RESOLUTION) - 1) // 255
 #define LEDC_CHANNEL_FAN       4
 
-#define LEDC_DISPLAY_FREQ_HZ    5000
+#define LEDC_DISPLAY_FREQ_HZ    2000
 #define LEDC_DISPLAY_RESOLUTION 8
 #define LEDC_DISPLAY_MAX_DUTY   255
-#define LEDC_CHANNEL_DISPLAY    5
+#define LEDC_CHANNEL_DISPLAY    6  // Dedicated LEDC Timer 3 (Channels 6 & 7) to avoid any collision with Fan (Channel 4 / Timer 2)
 
 // =========================================================================
 // Display Configuration: 1.44" ST7735 SPI TFT Color Display (128x128)
@@ -106,7 +106,7 @@
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.2.5"
+#define FIRMWARE_VERSION       "1.2.6"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"

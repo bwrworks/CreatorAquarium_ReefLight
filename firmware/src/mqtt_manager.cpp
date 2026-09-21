@@ -290,6 +290,8 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
                 if (id) storageManager.deleteSchedule(String(id));
             } else {
                 storageManager.saveSchedule(String(payloadStr));
+                scheduleEngine.setMode("auto");
+                storageManager.saveMode("auto");
             }
             scheduleEngine.reloadConfig();
             stateDirty = true;
@@ -297,6 +299,8 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
     } else if (cmd == "weekly") {
         if (!err) {
             storageManager.saveWeeklyAssignment(String(payloadStr));
+            scheduleEngine.setMode("auto");
+            storageManager.saveMode("auto");
             scheduleEngine.reloadConfig();
             stateDirty = true;
         }

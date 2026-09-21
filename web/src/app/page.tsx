@@ -83,13 +83,13 @@ export default function HomePage() {
   // Hardware Power states
   const isMasterOn = deviceState.masterOn ?? true;
   const isDisplayOn = (deviceState.displayBrightness ?? 255) > 0;
-  const isFanOn = (deviceState.live.fan ?? 40) > 0;
+  const isFanOn = (deviceState.live.fan ?? 0) > 0;
 
   const lastActiveBrightnessRef = useRef<number>(
     deviceState.displayBrightness && deviceState.displayBrightness > 0 ? deviceState.displayBrightness : 180
   );
   const lastActiveFanRef = useRef<number>(
-    deviceState.live.fan && deviceState.live.fan > 0 ? deviceState.live.fan : 50
+    deviceState.live.fan && deviceState.live.fan > 0 ? deviceState.live.fan : 25
   );
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function HomePage() {
     white: deviceState.live.white,
     uv: deviceState.live.uv,
   });
-  const [fanSpeed, setFanSpeed] = useState<number>(deviceState.live.fan ?? 40);
+  const [fanSpeed, setFanSpeed] = useState<number>(deviceState.live.fan ?? 0);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [remainingTimeStr, setRemainingTimeStr] = useState<string>('');
 
@@ -342,11 +342,11 @@ export default function HomePage() {
 
   const handleToggleFanPower = () => {
     if (isFanOn) {
-      lastActiveFanRef.current = fanSpeed || 50;
+      lastActiveFanRef.current = fanSpeed > 0 ? fanSpeed : 25;
       publishFan(0);
       setFanSpeed(0);
     } else {
-      const targetFan = lastActiveFanRef.current || 50;
+      const targetFan = Math.min(28, lastActiveFanRef.current > 0 ? lastActiveFanRef.current : 25);
       publishFan(targetFan);
       setFanSpeed(targetFan);
     }
