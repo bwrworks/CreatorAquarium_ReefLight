@@ -315,10 +315,15 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
         }
     } else if (cmd == "time") {
         // Fallback direct time push from mobile app
-        if (!err && (doc["time"].is<const char*>() || doc["iso"].is<const char*>())) {
-            String timeIso = doc["time"].is<const char*>() ? doc["time"].as<String>() : doc["iso"].as<String>();
-            rtcManager.setTimeFromISO(timeIso);
-            stateDirty = true;
+        if (!err) {
+            if (doc["epoch"].is<long>() && doc["epoch"].as<long>() > 1700000000L) {
+                rtcManager.setTimeFromEpoch((time_t)doc["epoch"].as<long>());
+                stateDirty = true;
+            } else if (doc["time"].is<const char*>() || doc["iso"].is<const char*>()) {
+                String timeIso = doc["time"].is<const char*>() ? doc["time"].as<String>() : doc["iso"].as<String>();
+                rtcManager.setTimeFromISO(timeIso);
+                stateDirty = true;
+            }
         }
     } else if (cmd == "ota") {
         if (!err) {

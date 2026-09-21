@@ -38,6 +38,8 @@ char deviceId[32]   = DEFAULT_DEVICE_ID;
 void setupWiFi() {
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
+    // Lower Wi-Fi TX power to 11dBm to suppress peak current surges and voltage dips
+    WiFi.setTxPower(WIFI_POWER_11dBm);
 
 #if defined(DEFAULT_WIFI_SSID) && defined(DEFAULT_WIFI_PASS)
     if (strlen(DEFAULT_WIFI_SSID) > 0) {
@@ -210,9 +212,6 @@ void setup() {
     pinMode(PIN_FAN_PWM, OUTPUT);
     digitalWrite(PIN_FAN_PWM, LOW);
 
-    // Disable brownout detector to prevent reboot loops on buck converters or noisy external power
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-
     if (strcmp(OTA_SECRET_TOKEN, "REPLACE_WITH_SECURE_RANDOM_TOKEN_HERE") == 0) {
         Serial.begin(115200);
         Serial.println("FATAL: OTA_SECRET_TOKEN still has the placeholder value in secrets.h — edit it before flashing.");
@@ -223,6 +222,7 @@ void setup() {
     delay(150);
     Serial.println("\n==================================================");
     Serial.println("   REEF AQUARIUM LED CONTROLLER v" FIRMWARE_VERSION);
+    Serial.printf("[BOOT] reset reason: %d\n", (int)esp_reset_reason());
     Serial.println("==================================================");
 
     // Initialize I2C bus once with timeout

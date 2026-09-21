@@ -108,7 +108,7 @@ void RtcTimeManager::setTimeFromEpoch(time_t epoch) {
 }
 
 bool RtcTimeManager::setTimeFromISO(const String& isoStr) {
-    // Expected format: YYYY-MM-DDTHH:MM:SS
+    // Expected format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SS.sssZ
     if (isoStr.length() < 19) return false;
     struct tm tmParsed;
     memset(&tmParsed, 0, sizeof(struct tm));
@@ -120,8 +120,10 @@ bool RtcTimeManager::setTimeFromISO(const String& isoStr) {
         tmParsed.tm_hour = hour;
         tmParsed.tm_min = min;
         tmParsed.tm_sec = sec;
-        time_t localEpoch = mktime(&tmParsed);
-        time_t utcEpoch = localEpoch - timezoneOffsetSec;
+        time_t parsedEpoch = mktime(&tmParsed);
+        // If string ends with 'Z' (Zulu/UTC), the parsed numbers are UTC, do NOT subtract offset!
+        // If it's local time without 'Z', convert local time to UTC by subtracting timezone offset
+        time_t utcEpoch = (isoStr.indexOf('Z') >= 0) ? parsedEpoch : (parsedEpoch - timezoneOffsetSec);
         setTimeFromEpoch(utcEpoch);
         return true;
     }

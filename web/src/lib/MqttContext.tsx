@@ -144,9 +144,10 @@ export function MqttProvider({ children }: { children: React.ReactNode }) {
       client.on('connect', () => {
         setIsBrokerConnected(true);
         client.subscribe([stateTopic, statusTopic], { qos: 1 });
-        // Automatically sync current client ISO time to ESP32 RTC
+        // Automatically sync current client epoch time to ESP32 RTC (unambiguous UTC epoch)
+        const nowEpoch = Math.floor(Date.now() / 1000);
         const nowIso = new Date().toISOString();
-        const timePayload = JSON.stringify({ time: nowIso, iso: nowIso });
+        const timePayload = JSON.stringify({ epoch: nowEpoch, time: nowIso, iso: nowIso });
         client.publish(`reef/${config.deviceId}/cmd/time`, timePayload, { qos: 0 });
       });
 
