@@ -32,6 +32,7 @@ public:
     void updateSlew(float maxDeltaPercent = 0.5f);
     bool isSoftStartActive() const { return softStartActive; }
     void disableSoftStart() { softStartActive = false; }
+    void applyOutputs();
 
 private:
     bool initialized;
@@ -44,7 +45,6 @@ private:
 
     uint32_t pctToLedDuty(float pct);
     uint32_t pctToFanDuty(float pct);
-    void applyOutputs();
 };
 
 extern LedcDriver ledcDriver;

@@ -96,8 +96,6 @@ bool OledDisplayManager::begin() {
     tft.setCursor(18, 98);
     tft.print("Brighter Reefs");
 
-    delay(750);
-
     drawView0Static();
     currentView = 0;
     lastViewSwitchMillis = millis();

@@ -368,7 +368,7 @@ void ScheduleEngine::notifyTimeConfirmed() {
         Serial.println("[ENGINE] Time confirmed. Refreshing schedule and evaluating daylight curve immediately.");
         currentActiveScheduleId = ""; // Force reload of today's schedule
         resolveTodaySchedule();
-        if (currentMode == "auto") {
+        if (currentMode == "auto" && !bootHoldActive) {
             int secOfDay = rtcManager.getSecondsOfDay();
             evaluateSchedule(secOfDay);
         }

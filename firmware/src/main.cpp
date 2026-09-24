@@ -212,6 +212,9 @@ void setup() {
     pinMode(PIN_FAN_PWM, OUTPUT);
     digitalWrite(PIN_FAN_PWM, LOW);
 
+    // 1. Immediately engage LEDC hardware outputs (duty 4095 = pure DC HIGH, 0% light)
+    ledcDriver.begin();
+
     if (strcmp(OTA_SECRET_TOKEN, "REPLACE_WITH_SECURE_RANDOM_TOKEN_HERE") == 0) {
         Serial.begin(115200);
         Serial.println("FATAL: OTA_SECRET_TOKEN still has the placeholder value in secrets.h — edit it before flashing.");
@@ -219,7 +222,6 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(150);
     Serial.println("\n==================================================");
     Serial.println("   REEF AQUARIUM LED CONTROLLER v" FIRMWARE_VERSION);
     Serial.printf("[BOOT] reset reason: %d\n", (int)esp_reset_reason());
@@ -229,12 +231,12 @@ void setup() {
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
     Wire.setTimeOut(50);
 
-    // 1. Initialize Display and DS3231 RTC first
+    // 2. Initialize Display and DS3231 RTC
     oledDisplay.begin();
     rtcManager.begin();
 
-    // 2. Initialize LEDC hardware outputs (Blue1: GPIO18, Blue2: GPIO19, White: GPIO32, UV: GPIO33, Fan: GPIO4)
-    ledcDriver.begin();
+    // Re-assert LEDC outputs in case peripheral init touched pin registers
+    ledcDriver.applyOutputs();
 
     // 3. Initialize Flash Storage (LittleFS and NVS Preferences)
     storageManager.begin();
