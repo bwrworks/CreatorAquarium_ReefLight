@@ -106,7 +106,7 @@
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.2.7"
+#define FIRMWARE_VERSION       "1.2.8"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"

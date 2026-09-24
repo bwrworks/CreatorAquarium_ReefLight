@@ -13,7 +13,7 @@ const defaultInitialState: DeviceState = {
   time: '',
   wifiConnected: true,
   cloudConnected: true,
-  firmwareVersion: '1.2.7',
+  firmwareVersion: '1.2.8',
   masterOn: true,
   displayBrightness: 180,
 };

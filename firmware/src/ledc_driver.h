@@ -42,6 +42,9 @@ private:
     unsigned long bootMillis;
     ChannelValues targetValues;
     ChannelValues appliedValues;
+    bool blueAttached;
+    bool whiteAttached;
+    bool uvAttached;
 
     uint32_t pctToLedDuty(float pct);
     uint32_t pctToFanDuty(float pct);

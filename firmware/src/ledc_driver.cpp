@@ -3,7 +3,8 @@
 LedcDriver ledcDriver;
 
 LedcDriver::LedcDriver() 
-    : initialized(false), masterOn(true), fanInverted(LEDC_FAN_INVERTED_DEFAULT), softStartActive(true), bootMillis(0) {
+    : initialized(false), masterOn(true), fanInverted(LEDC_FAN_INVERTED_DEFAULT), softStartActive(true), bootMillis(0),
+      blueAttached(false), whiteAttached(false), uvAttached(false) {
     targetValues = {0.0f, 0.0f, 0.0f, 0.0f};
     appliedValues = {0.0f, 0.0f, 0.0f, 0.0f};
 }
@@ -12,28 +13,27 @@ void LedcDriver::begin() {
     bootMillis = millis();
     softStartActive = true;
 
-    // In inverted mode: 0% brightness = LEDC_LED_MAX_DUTY (pure DC HIGH)
-    uint32_t offDuty = pctToLedDuty(0.0f);
+    // Hold LED driver pins strictly at pure DC HIGH (0% light) via standard GPIO output.
+    // We intentionally DO NOT attach LEDC PWM until actual brightness > 0% is commanded.
+    // This completely prevents any peripheral initialization duty glitches or boot flashes.
+    digitalWrite(PIN_LED_BLUE1, HIGH);
+    pinMode(PIN_LED_BLUE1, OUTPUT);
+    digitalWrite(PIN_LED_BLUE2, HIGH);
+    pinMode(PIN_LED_BLUE2, OUTPUT);
+    digitalWrite(PIN_LED_WHITE, HIGH);
+    pinMode(PIN_LED_WHITE, OUTPUT);
+    digitalWrite(PIN_LED_UV, HIGH);
+    pinMode(PIN_LED_UV, OUTPUT);
 
-    // Configure Royal Blue 1 (GPIO 18) - write OFF duty BEFORE attaching pin so pin never drops LOW
+    blueAttached = false;
+    whiteAttached = false;
+    uvAttached = false;
+
+    // Configure LEDC timers in advance so they are ready when channels attach
     ledcSetup(LEDC_CHANNEL_BLUE1, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcWrite(LEDC_CHANNEL_BLUE1, offDuty);
-    ledcAttachPin(PIN_LED_BLUE1, LEDC_CHANNEL_BLUE1);
-
-    // Configure Royal Blue 2 (GPIO 19)
     ledcSetup(LEDC_CHANNEL_BLUE2, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcWrite(LEDC_CHANNEL_BLUE2, offDuty);
-    ledcAttachPin(PIN_LED_BLUE2, LEDC_CHANNEL_BLUE2);
-
-    // Configure Day White (GPIO 32)
     ledcSetup(LEDC_CHANNEL_WHITE, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcWrite(LEDC_CHANNEL_WHITE, offDuty);
-    ledcAttachPin(PIN_LED_WHITE, LEDC_CHANNEL_WHITE);
-
-    // Configure Actinic UV (GPIO 33)
-    ledcSetup(LEDC_CHANNEL_UV, LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
-    ledcWrite(LEDC_CHANNEL_UV, offDuty);
-    ledcAttachPin(PIN_LED_UV, LEDC_CHANNEL_UV);
+    ledcSetup(LEDC_CHANNEL_UV,    LEDC_LED_FREQ_HZ, LEDC_LED_RESOLUTION);
 
     // Configure Fan channel (1000 Hz, 8-bit on GPIO 4) - start at 0% (OFF)
     ledcSetup(LEDC_CHANNEL_FAN, LEDC_FAN_FREQ_HZ, LEDC_FAN_RESOLUTION);
@@ -131,37 +131,93 @@ void LedcDriver::updateSlew(float maxDeltaPercent) {
     appliedValues.uv    = stepValue(appliedValues.uv,    effectiveTarget.uv);
     appliedValues.fan   = stepValue(appliedValues.fan,   effectiveTarget.fan);
 
-    uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
-    ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);
-    ledcWrite(LEDC_CHANNEL_BLUE2, blueDuty);
-    ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(appliedValues.white));
-    ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(appliedValues.uv));
-    ledcWrite(LEDC_CHANNEL_FAN,   pctToFanDuty(appliedValues.fan));
+    applyOutputs();
 }
 
 void LedcDriver::applyOutputs() {
     if (!masterOn) {
-#if defined(LEDC_PWM_INVERTED) && LEDC_PWM_INVERTED
-        ledcWrite(LEDC_CHANNEL_BLUE1, LEDC_LED_MAX_DUTY);
-        ledcWrite(LEDC_CHANNEL_BLUE2, LEDC_LED_MAX_DUTY);
-        ledcWrite(LEDC_CHANNEL_WHITE, LEDC_LED_MAX_DUTY);
-        ledcWrite(LEDC_CHANNEL_UV,    LEDC_LED_MAX_DUTY);
-#else
-        ledcWrite(LEDC_CHANNEL_BLUE1, 0);
-        ledcWrite(LEDC_CHANNEL_BLUE2, 0);
-        ledcWrite(LEDC_CHANNEL_WHITE, 0);
-        ledcWrite(LEDC_CHANNEL_UV,    0);
-#endif
+        if (blueAttached) {
+            ledcDetachPin(PIN_LED_BLUE1);
+            ledcDetachPin(PIN_LED_BLUE2);
+            blueAttached = false;
+        }
+        if (whiteAttached) {
+            ledcDetachPin(PIN_LED_WHITE);
+            whiteAttached = false;
+        }
+        if (uvAttached) {
+            ledcDetachPin(PIN_LED_UV);
+            uvAttached = false;
+        }
+        digitalWrite(PIN_LED_BLUE1, HIGH);
+        pinMode(PIN_LED_BLUE1, OUTPUT);
+        digitalWrite(PIN_LED_BLUE2, HIGH);
+        pinMode(PIN_LED_BLUE2, OUTPUT);
+        digitalWrite(PIN_LED_WHITE, HIGH);
+        pinMode(PIN_LED_WHITE, OUTPUT);
+        digitalWrite(PIN_LED_UV, HIGH);
+        pinMode(PIN_LED_UV, OUTPUT);
+
         appliedValues.blue  = 0.0f;
         appliedValues.white = 0.0f;
         appliedValues.uv    = 0.0f;
         appliedValues.fan   = 0.0f;
     } else {
-        uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
-        ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);
-        ledcWrite(LEDC_CHANNEL_BLUE2, blueDuty);
-        ledcWrite(LEDC_CHANNEL_WHITE, pctToLedDuty(appliedValues.white));
-        ledcWrite(LEDC_CHANNEL_UV,    pctToLedDuty(appliedValues.uv));
+        // Royal Blue channels (GPIO 18 & 19)
+        if (appliedValues.blue <= 0.01f) {
+            if (blueAttached) {
+                ledcDetachPin(PIN_LED_BLUE1);
+                ledcDetachPin(PIN_LED_BLUE2);
+                blueAttached = false;
+            }
+            digitalWrite(PIN_LED_BLUE1, HIGH);
+            pinMode(PIN_LED_BLUE1, OUTPUT);
+            digitalWrite(PIN_LED_BLUE2, HIGH);
+            pinMode(PIN_LED_BLUE2, OUTPUT);
+        } else {
+            uint32_t blueDuty = pctToLedDuty(appliedValues.blue);
+            if (!blueAttached) {
+                ledcAttachPin(PIN_LED_BLUE1, LEDC_CHANNEL_BLUE1);
+                ledcAttachPin(PIN_LED_BLUE2, LEDC_CHANNEL_BLUE2);
+                blueAttached = true;
+            }
+            ledcWrite(LEDC_CHANNEL_BLUE1, blueDuty);
+            ledcWrite(LEDC_CHANNEL_BLUE2, blueDuty);
+        }
+
+        // Day White channel (GPIO 32)
+        if (appliedValues.white <= 0.01f) {
+            if (whiteAttached) {
+                ledcDetachPin(PIN_LED_WHITE);
+                whiteAttached = false;
+            }
+            digitalWrite(PIN_LED_WHITE, HIGH);
+            pinMode(PIN_LED_WHITE, OUTPUT);
+        } else {
+            uint32_t whiteDuty = pctToLedDuty(appliedValues.white);
+            if (!whiteAttached) {
+                ledcAttachPin(PIN_LED_WHITE, LEDC_CHANNEL_WHITE);
+                whiteAttached = true;
+            }
+            ledcWrite(LEDC_CHANNEL_WHITE, whiteDuty);
+        }
+
+        // Actinic UV channel (GPIO 33)
+        if (appliedValues.uv <= 0.01f) {
+            if (uvAttached) {
+                ledcDetachPin(PIN_LED_UV);
+                uvAttached = false;
+            }
+            digitalWrite(PIN_LED_UV, HIGH);
+            pinMode(PIN_LED_UV, OUTPUT);
+        } else {
+            uint32_t uvDuty = pctToLedDuty(appliedValues.uv);
+            if (!uvAttached) {
+                ledcAttachPin(PIN_LED_UV, LEDC_CHANNEL_UV);
+                uvAttached = true;
+            }
+            ledcWrite(LEDC_CHANNEL_UV, uvDuty);
+        }
     }
 
     ledcWrite(LEDC_CHANNEL_FAN, pctToFanDuty(appliedValues.fan));
