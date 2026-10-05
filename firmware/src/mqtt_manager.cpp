@@ -304,6 +304,61 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             scheduleEngine.reloadConfig();
             stateDirty = true;
         }
+    } else if (cmd == "photoperiod") {
+        if (!err) {
+            String startTime = doc["start"] | "12:00";
+            String endTime = doc["end"] | "21:00";
+            int rampMin = doc["rampMin"] | 60;
+            float blue = doc["blue"] | 50.0f;
+            float white = doc["white"] | 25.0f;
+            float uv = doc["uv"] | 40.0f;
+
+            int sh = 12, sm = 0, eh = 21, em = 0;
+            sscanf(startTime.c_str(), "%d:%d", &sh, &sm);
+            sscanf(endTime.c_str(), "%d:%d", &eh, &em);
+            int startMin = sh * 60 + sm;
+            int endMin = eh * 60 + em;
+            if (endMin <= startMin) endMin = startMin + 540;
+
+            int peakStartMin = startMin + rampMin;
+            int peakEndMin = endMin - rampMin;
+            if (peakEndMin < peakStartMin) {
+                peakStartMin = startMin + (endMin - startMin) / 4;
+                peakEndMin = endMin - (endMin - startMin) / 4;
+            }
+
+            char peakStartStr[8], peakEndStr[8], startStr[8], endStr[8];
+            snprintf(startStr, sizeof(startStr), "%02d:%02d", startMin / 60, startMin % 60);
+            snprintf(peakStartStr, sizeof(peakStartStr), "%02d:%02d", peakStartMin / 60, peakStartMin % 60);
+            snprintf(peakEndStr, sizeof(peakEndStr), "%02d:%02d", peakEndMin / 60, peakEndMin % 60);
+            snprintf(endStr, sizeof(endStr), "%02d:%02d", endMin / 60, endMin % 60);
+
+            JsonDocument schedDoc;
+            schedDoc["id"] = "reef_growth";
+            schedDoc["name"] = "Reef Growth (9h Daily)";
+            JsonArray kfs = schedDoc["keyframes"].to<JsonArray>();
+
+            JsonObject k0 = kfs.add<JsonObject>(); k0["time"] = "00:00"; k0["blue"] = 0; k0["white"] = 0; k0["uv"] = 0;
+            JsonObject k1 = kfs.add<JsonObject>(); k1["time"] = startStr; k1["blue"] = 0; k1["white"] = 0; k1["uv"] = 0;
+            JsonObject k2 = kfs.add<JsonObject>(); k2["time"] = peakStartStr; k2["blue"] = blue; k2["white"] = white; k2["uv"] = uv;
+            JsonObject k3 = kfs.add<JsonObject>(); k3["time"] = peakEndStr; k3["blue"] = blue; k3["white"] = white; k3["uv"] = uv;
+            JsonObject k4 = kfs.add<JsonObject>(); k4["time"] = endStr; k4["blue"] = 0; k4["white"] = 0; k4["uv"] = 0;
+            JsonObject k5 = kfs.add<JsonObject>(); k5["time"] = "23:59"; k5["blue"] = 0; k5["white"] = 0; k5["uv"] = 0;
+
+            String schedJson;
+            serializeJson(schedDoc, schedJson);
+            storageManager.saveSchedule(schedJson);
+
+            String weeklyJson = "{\"mon\":\"reef_growth\",\"tue\":\"reef_growth\",\"wed\":\"reef_growth\",\"thu\":\"reef_growth\",\"fri\":\"reef_growth\",\"sat\":\"reef_growth\",\"sun\":\"reef_growth\"}";
+            storageManager.saveWeeklyAssignment(weeklyJson);
+
+            scheduleEngine.setMode("auto");
+            storageManager.saveMode("auto");
+            scheduleEngine.reloadConfig();
+            stateDirty = true;
+            Serial.printf("[MQTT CMD] Photoperiod updated: %s to %s (B:%.0f%% W:%.0f%% UV:%.0f%%)\n",
+                          startStr, endStr, blue, white, uv);
+        }
     } else if (cmd == "acclimation") {
         if (!err) {
             String action = doc["action"] | "";

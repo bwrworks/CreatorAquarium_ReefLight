@@ -13,9 +13,9 @@ const defaultInitialState: DeviceState = {
   time: '',
   wifiConnected: true,
   cloudConnected: true,
-  firmwareVersion: '1.2.8',
+  firmwareVersion: '1.2.9',
   masterOn: true,
-  displayBrightness: 180,
+  displayBrightness: 200,
 };
 
 interface MqttContextType {

@@ -55,15 +55,20 @@ OledDisplayManager::OledDisplayManager()
 }
 
 bool OledDisplayManager::begin() {
+    pinMode(TFT_RST, OUTPUT);
+    digitalWrite(TFT_RST, HIGH);
+    pinMode(TFT_CS, OUTPUT);
+    digitalWrite(TFT_CS, HIGH);
+
     ledcSetup(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_FREQ_HZ, LEDC_DISPLAY_RESOLUTION);
     ledcWrite(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_MAX_DUTY); // full brightness until real value is applied
     ledcAttachPin(TFT_LED, LEDC_CHANNEL_DISPLAY);
 
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
-    tftSPI.setFrequency(8000000); // 8MHz for signal stability
+    tftSPI.setFrequency(4000000); // 4MHz for rock-solid signal integrity over jumper wires
 
     tft.initR(TFT_INIT_VARIANT);
-    tft.setSPISpeed(8000000);
+    tft.setSPISpeed(4000000);
     tft.setRotation(TFT_ROTATION);
 #if defined(TFT_INVERT) && TFT_INVERT
     tft.invertDisplay(true);
@@ -101,12 +106,13 @@ bool OledDisplayManager::begin() {
     lastViewSwitchMillis = millis();
     displayPresent = true;
 
-    Serial.printf("[TFT] ST7735 (128x128 Landscape @ 8MHz, Rot:%d) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d (PWM Ch:%d)\n",
+    Serial.printf("[TFT] ST7735 (128x128 Landscape @ 4MHz, Rot:%d) initialized on CS:%d DC:%d RST:%d SCK:%d MOSI:%d LED:%d (PWM Ch:%d)\n",
                   TFT_ROTATION, TFT_CS, TFT_DC, TFT_RST, TFT_SCLK, TFT_MOSI, TFT_LED, LEDC_CHANNEL_DISPLAY);
     return true;
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
+    if (brightness > 0 && brightness < 50) brightness = 50;
     ledcWrite(LEDC_CHANNEL_DISPLAY, brightness);
 }
 
@@ -146,17 +152,15 @@ void OledDisplayManager::drawView0Static() {
 
     drawRainbowArch();
 
-    // Time markers below arch
+    // Time markers below arch: 12:00 to 21:00 daylight window
     tft.setTextSize(1);
     tft.setTextColor(C_DIM_GRAY, C_BG);
     tft.setCursor(6, 102);
-    tft.print("06:00");
-    tft.setCursor(44, 102);
     tft.print("12:00");
-    tft.setCursor(78, 102);
-    tft.print("18:00");
-    tft.setCursor(102, 102);
-    tft.print("22");
+    tft.setCursor(50, 102);
+    tft.print("16:30");
+    tft.setCursor(96, 102);
+    tft.print("21:00");
 
     // Card 4: Bottom Status Bar (X=0, Y=115, W=128, H=13)
     tft.drawRoundRect(0, 115, 128, 13, 2, C_CARD_BORDER);
@@ -189,11 +193,11 @@ void OledDisplayManager::drawRainbowArch() {
         int y = 96 - (int)(sinf(angle) * 16.0f);
 
         uint16_t col;
-        if (x < 22) col = C_ORANGE;      // 06:00 Sunrise
-        else if (x < 44) col = C_GOLD;   // 09:00 Morning
-        else if (x < 62) col = C_WHITE;  // 12:00 Peak Solar
-        else if (x < 84) col = C_BLUE;   // 18:00 Dusk Blue
-        else col = C_UV;                 // 22:00 Moon Actinic
+        if (x < 15) col = C_ORANGE;      // 12:00 Sunrise
+        else if (x < 35) col = C_GOLD;   // 13:00 Morning Ramp
+        else if (x < 75) col = C_WHITE;  // Peak Daylight (50% Blue, 25% White, 40% UV)
+        else if (x < 95) col = C_BLUE;   // 20:00 Sunset Dusk
+        else col = C_UV;                 // 21:00 Moon Actinic / Off
 
         tft.drawPixel(11 + x, y, col);
         tft.drawPixel(11 + x, y + 1, col); // 2px thick glowing line
@@ -299,14 +303,14 @@ void OledDisplayManager::renderView0(const DeviceStateSnapshot& state, const Str
         lastScheduleId = state.activeScheduleId;
     }
 
-    // 7. Live Sun-Tracking Dot along the Rainbow Arch
+    // 7. Live Sun-Tracking Dot along the Rainbow Arch (12:00 to 21:00 = 43200 to 75600 sec)
     time_t rawEpoch = rtcManager.getEpoch() + rtcManager.getTimezoneOffset();
     struct tm* ti = gmtime(&rawEpoch);
     int secOfDay = ti->tm_hour * 3600 + ti->tm_min * 60 + ti->tm_sec;
 
     int newSunX = 11, newSunY = 96;
-    if (secOfDay >= 21600 && secOfDay <= 79200) { // 06:00 to 22:00
-        float prog = (float)(secOfDay - 21600) / 57600.0f;
+    if (secOfDay >= 43200 && secOfDay <= 75600) { // 12:00 to 21:00 (9h photoperiod)
+        float prog = (float)(secOfDay - 43200) / 32400.0f; // 9 hours = 32400 seconds
         prog = constrain(prog, 0.0f, 1.0f);
         newSunX = 11 + (int)(prog * 105.0f);
         newSunY = 96 - (int)(sinf(prog * 3.14159f) * 16.0f);
@@ -319,7 +323,7 @@ void OledDisplayManager::renderView0(const DeviceStateSnapshot& state, const Str
         if (lastSunDotX >= 0) {
             drawRainbowArch(); // Redraw arch to erase previous dot cleanly
         }
-        tft.fillCircle(newSunX, newSunY, 2, (secOfDay >= 21600 && secOfDay <= 79200) ? C_WHITE : C_UV);
+        tft.fillCircle(newSunX, newSunY, 2, (secOfDay >= 43200 && secOfDay <= 75600) ? C_WHITE : C_UV);
         lastSunDotX = newSunX;
         lastSunDotY = newSunY;
     }
@@ -527,35 +531,33 @@ void OledDisplayManager::loop() {
     if (!displayPresent) return;
 
     unsigned long now = millis();
-    if (now - lastRenderMillis < 400) return; // ~2.5 Hz refresh rate
+
+    // 1. Hardware Keep-Alive / Watchdog every 15 seconds:
+    // Ensures ST7735 controller never slips into sleep (SLPIN) or display-off (DISPOFF) due to SPI bus noise
+    static unsigned long lastKeepAliveMillis = 0;
+    if (now - lastKeepAliveMillis >= 15000UL) {
+        lastKeepAliveMillis = now;
+        tft.sendCommand(0x11); // ST77XX_SLPOUT (Exit Sleep)
+        delayMicroseconds(200);
+        tft.sendCommand(0x29); // ST77XX_DISPON (Display On)
+    }
+
+    // 2. Periodic Canvas Refresh every 120 seconds:
+    // Clears any electrostatic/signal drift artifacts cleanly without interfering with normal view
+    static unsigned long lastStaticRedrawMillis = 0;
+    if (now - lastStaticRedrawMillis >= 120000UL) {
+        lastStaticRedrawMillis = now;
+        drawView0Static();
+    }
+
+    if (now - lastRenderMillis < 500) return; // 2 Hz smooth dashboard refresh
     lastRenderMillis = now;
 
     DeviceStateSnapshot state = scheduleEngine.getStateSnapshot(WiFi.status() == WL_CONNECTED, mqttManager.isConnected());
     String timeStr = rtcManager.getFormattedTime();
 
-    // If in manual mode, hold on View 0 (Control view) so sliders/countdown are always visible
-    if (state.mode == "manual") {
-        manualModeLockMillis = now;
-        if (currentView != 0) {
-            currentView = 0;
-            drawView0Static();
-        }
-    } else {
-        // In Auto mode, cycle between View 0 and View 1 every 8 seconds
-        if (now - manualModeLockMillis > 5000 && now - lastViewSwitchMillis > 8000) {
-            currentView = (currentView + 1) % 2;
-            lastViewSwitchMillis = now;
-            if (currentView == 0) {
-                drawView0Static();
-            } else {
-                drawView1Static();
-            }
-        }
-    }
-
-    if (currentView == 0) {
-        renderView0(state, timeStr);
-    } else {
-        renderView1(state, timeStr);
-    }
+    // Lock permanently to View 0 (clean, stable, beautiful control dashboard)
+    // No aggressive 8-second view switching that floods the SPI bus
+    currentView = 0;
+    renderView0(state, timeStr);
 }

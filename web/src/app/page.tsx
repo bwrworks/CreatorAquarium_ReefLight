@@ -38,25 +38,25 @@ interface Preset {
 
 const QUICK_PRESETS: Preset[] = [
   {
-    id: 'week_1_peak',
-    name: 'Week 1 Peak',
+    id: 'reef_growth_peak',
+    name: 'Reef Growth Peak',
     icon: Sun,
-    channels: { blue: 20, white: 12, uv: 6 },
+    channels: { blue: 50, white: 25, uv: 40 },
     fan: 40,
   },
   {
-    id: 'week_2_peak',
-    name: 'Week 2 Peak',
-    icon: Sun,
-    channels: { blue: 25, white: 15, uv: 8 },
-    fan: 45,
+    id: 'deep_coral_pop',
+    name: 'Deep Coral Pop',
+    icon: Sparkles,
+    channels: { blue: 60, white: 5, uv: 50 },
+    fan: 35,
   },
   {
-    id: 'week_3_peak',
-    name: 'Week 3 Peak',
-    icon: Sparkles,
-    channels: { blue: 30, white: 18, uv: 10 },
-    fan: 50,
+    id: 'daylight_natural',
+    name: 'Daylight 9h',
+    icon: Sun,
+    channels: { blue: 50, white: 25, uv: 40 },
+    fan: 40,
   },
   {
     id: 'all_off',

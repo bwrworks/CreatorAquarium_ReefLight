@@ -186,14 +186,10 @@ void ScheduleEngine::resolveTodaySchedule() {
     else if (todayDow == "sun") targetSchedId = weekly.sun;
 
     static String lastResolvedDow = "";
-    static int lastResolvedWeek = -1;
-    time_t nowSec = rtcManager.getEpoch();
-    int currentWeekNum = (nowSec >= 1791072000ULL) ? 3 : ((nowSec >= 1790467200ULL) ? 2 : 1);
-    bool forceRefresh = (todayDow != lastResolvedDow) || (currentWeekNum != lastResolvedWeek);
+    bool forceRefresh = (todayDow != lastResolvedDow);
 
     if (forceRefresh || targetSchedId != currentActiveScheduleId || activeSchedule.keyframes.empty()) {
         lastResolvedDow = todayDow;
-        lastResolvedWeek = currentWeekNum;
         currentActiveScheduleId = targetSchedId;
         if (!storageManager.loadSchedule(currentActiveScheduleId, activeSchedule)) {
             Serial.printf("[ENGINE] Failed to load schedule '%s', falling back to 'reef_growth'\n", currentActiveScheduleId.c_str());

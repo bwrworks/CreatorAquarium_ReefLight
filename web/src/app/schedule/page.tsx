@@ -20,84 +20,58 @@ import {
   Sliders,
 } from 'lucide-react';
 
-const REEF_GROWTH_W1: Keyframe[] = [
+const DEFAULT_KEYFRAMES: Keyframe[] = [
   { time: '00:00', blue: 0, white: 0, uv: 0 },
-  { time: '15:29', blue: 0, white: 0, uv: 0 },
-  { time: '15:30', blue: 1, white: 0, uv: 0 },
-  { time: '16:00', blue: 7, white: 2, uv: 2 },
-  { time: '16:30', blue: 13, white: 5, uv: 4 },
-  { time: '17:00', blue: 20, white: 12, uv: 6 },
-  { time: '20:00', blue: 20, white: 12, uv: 6 },
-  { time: '20:30', blue: 13, white: 5, uv: 4 },
-  { time: '21:00', blue: 7, white: 2, uv: 2 },
-  { time: '21:30', blue: 0, white: 0, uv: 0 },
+  { time: '12:00', blue: 0, white: 0, uv: 0 },
+  { time: '13:00', blue: 50, white: 25, uv: 40 },
+  { time: '20:00', blue: 50, white: 25, uv: 40 },
+  { time: '21:00', blue: 0, white: 0, uv: 0 },
   { time: '23:59', blue: 0, white: 0, uv: 0 },
 ];
 
-const REEF_GROWTH_W2: Keyframe[] = [
-  { time: '00:00', blue: 0, white: 0, uv: 0 },
-  { time: '15:29', blue: 0, white: 0, uv: 0 },
-  { time: '15:30', blue: 2, white: 0, uv: 0 },
-  { time: '16:00', blue: 8, white: 2, uv: 3 },
-  { time: '16:30', blue: 17, white: 7, uv: 5 },
-  { time: '17:00', blue: 25, white: 15, uv: 8 },
-  { time: '20:00', blue: 25, white: 15, uv: 8 },
-  { time: '20:30', blue: 17, white: 7, uv: 5 },
-  { time: '21:00', blue: 8, white: 2, uv: 3 },
-  { time: '21:30', blue: 0, white: 0, uv: 0 },
-  { time: '23:59', blue: 0, white: 0, uv: 0 },
-];
+function buildPhotoperiodKeyframes(
+  start: string,
+  end: string,
+  rampMin: number,
+  blue: number,
+  white: number,
+  uv: number
+): Keyframe[] {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMin = (sh || 0) * 60 + (sm || 0);
+  let endMin = (eh || 0) * 60 + (em || 0);
+  if (endMin <= startMin) endMin = startMin + 540; // 9 hours fallback
 
-const REEF_GROWTH_W3: Keyframe[] = [
-  { time: '00:00', blue: 0, white: 0, uv: 0 },
-  { time: '15:29', blue: 0, white: 0, uv: 0 },
-  { time: '15:30', blue: 2, white: 0, uv: 0 },
-  { time: '16:00', blue: 10, white: 3, uv: 3 },
-  { time: '16:30', blue: 20, white: 8, uv: 6 },
-  { time: '17:00', blue: 30, white: 18, uv: 10 },
-  { time: '20:00', blue: 30, white: 18, uv: 10 },
-  { time: '20:30', blue: 20, white: 8, uv: 6 },
-  { time: '21:00', blue: 10, white: 3, uv: 3 },
-  { time: '21:30', blue: 0, white: 0, uv: 0 },
-  { time: '23:59', blue: 0, white: 0, uv: 0 },
-];
-
-function getReefGrowthStage(): { keyframes: Keyframe[]; weekNum: number; weekLabel: string; daysElapsed: number } {
-  const startEpoch = 1789862400000; // 2026-09-20T00:00:00 UTC
-  const now = Date.now();
-  const daysElapsed = Math.max(0, Math.floor((now - startEpoch) / (86400 * 1000)));
-
-  if (daysElapsed < 7) {
-    return { keyframes: REEF_GROWTH_W1, weekNum: 1, weekLabel: 'Week 1', daysElapsed };
-  } else if (daysElapsed < 14) {
-    return { keyframes: REEF_GROWTH_W2, weekNum: 2, weekLabel: 'Week 2', daysElapsed };
-  } else {
-    return { keyframes: REEF_GROWTH_W3, weekNum: 3, weekLabel: 'Week 3 Onward', daysElapsed };
+  let peakStartMin = startMin + rampMin;
+  let peakEndMin = endMin - rampMin;
+  if (peakEndMin < peakStartMin) {
+    const quarter = Math.floor((endMin - startMin) / 4);
+    peakStartMin = startMin + quarter;
+    peakEndMin = endMin - quarter;
   }
-}
 
-const currentRgStage = getReefGrowthStage();
+  const fmt = (m: number) => {
+    const h = Math.floor(m / 60) % 24;
+    const min = m % 60;
+    return `${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+  };
+
+  return [
+    { time: '00:00', blue: 0, white: 0, uv: 0 },
+    { time: fmt(startMin), blue: 0, white: 0, uv: 0 },
+    { time: fmt(peakStartMin), blue, white, uv },
+    { time: fmt(peakEndMin), blue, white, uv },
+    { time: fmt(endMin), blue: 0, white: 0, uv: 0 },
+    { time: '23:59', blue: 0, white: 0, uv: 0 },
+  ];
+}
 
 const DEFAULT_SCHEDULES: Schedule[] = [
   {
     id: 'reef_growth',
-    name: `Reef Growth (${currentRgStage.weekLabel})`,
-    keyframes: currentRgStage.keyframes,
-  },
-  {
-    id: 'reef_growth_w1',
-    name: 'Week 1 (15:30-21:30)',
-    keyframes: REEF_GROWTH_W1,
-  },
-  {
-    id: 'reef_growth_w2',
-    name: 'Week 2 (15:30-21:30)',
-    keyframes: REEF_GROWTH_W2,
-  },
-  {
-    id: 'reef_growth_w3',
-    name: 'Week 3 Onward (15:30-21:30)',
-    keyframes: REEF_GROWTH_W3,
+    name: 'Reef Growth (9h Daily)',
+    keyframes: DEFAULT_KEYFRAMES,
   },
 ];
 
@@ -146,11 +120,10 @@ export default function UnifiedSchedulePage() {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const allowedIds = ['reef_growth', 'reef_growth_w1', 'reef_growth_w2', 'reef_growth_w3'];
-            const userCustom = parsed.filter((s: Schedule) => !allowedIds.includes(s.id) && s.id !== 'natural_reef' && s.id !== 'deep_coral_pop');
-            const merged = [...DEFAULT_SCHEDULES, ...userCustom];
-            localStorage.setItem('reef_schedules', JSON.stringify(merged));
-            return merged;
+            const hasLegacy = parsed.some((s: Schedule) => s.id === 'reef_growth_w1' || s.id === 'natural_reef');
+            if (!hasLegacy && parsed.find((s: Schedule) => s.id === 'reef_growth')) {
+              return parsed;
+            }
           }
         } catch {}
       }
@@ -158,15 +131,24 @@ export default function UnifiedSchedulePage() {
     return DEFAULT_SCHEDULES;
   });
 
+  // Daily Photoperiod Builder State (Defaults: 12:00 to 21:00, 50% Blue, 40% UV, 25% White, 60m ramp)
+  const [photoStart, setPhotoStart] = useState<string>('12:00');
+  const [photoEnd, setPhotoEnd] = useState<string>('21:00');
+  const [photoRampMin, setPhotoRampMin] = useState<number>(60);
+  const [photoBlue, setPhotoBlue] = useState<number>(50);
+  const [photoUv, setPhotoUv] = useState<number>(40);
+  const [photoWhite, setPhotoWhite] = useState<number>(25);
+  const [showRawKeyframes, setShowRawKeyframes] = useState<boolean>(false);
+
   // Daily Curve Tab state
   const [activeScheduleId, setActiveScheduleId] = useState<string>('reef_growth');
-  const [scrubberSec, setScrubberSec] = useState<number>(18 * 3600); // Default to 18:00 (peak photoperiod)
+  const [scrubberSec, setScrubberSec] = useState<number>(16 * 3600 + 30 * 60); // Default to 16:30 (midday daylight peak)
   const [dailySavedSuccess, setDailySavedSuccess] = useState<boolean>(false);
   const [showAddKf, setShowAddKf] = useState<boolean>(false);
-  const [newKfTime, setNewKfTime] = useState<string>('17:00');
-  const [newKfBlue, setNewKfBlue] = useState<number>(20);
-  const [newKfWhite, setNewKfWhite] = useState<number>(12);
-  const [newKfUv, setNewKfUv] = useState<number>(6);
+  const [newKfTime, setNewKfTime] = useState<string>('16:00');
+  const [newKfBlue, setNewKfBlue] = useState<number>(50);
+  const [newKfWhite, setNewKfWhite] = useState<number>(25);
+  const [newKfUv, setNewKfUv] = useState<number>(40);
 
   // Weekly Plan Tab state
   const [weekly, setWeekly] = useState<WeeklyAssignment>(() => {
@@ -178,7 +160,7 @@ export default function UnifiedSchedulePage() {
           if (parsed && typeof parsed === 'object') {
             const cleanWeekly = { ...DEFAULT_WEEKLY };
             (['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as (keyof WeeklyAssignment)[]).forEach((d) => {
-              if (parsed[d] && parsed[d] !== 'natural_reef' && parsed[d] !== 'deep_coral_pop') {
+              if (parsed[d] && parsed[d] !== 'natural_reef' && parsed[d] !== 'deep_coral_pop' && !parsed[d].startsWith('reef_growth_w')) {
                 cleanWeekly[d] = parsed[d];
               }
             });
@@ -245,6 +227,62 @@ export default function UnifiedSchedulePage() {
     publishSchedule(activeSchedule);
     setDailySavedSuccess(true);
     setTimeout(() => setDailySavedSuccess(false), 2500);
+  };
+
+  const handlePhotoperiodChange = (
+    newStart = photoStart,
+    newEnd = photoEnd,
+    newRamp = photoRampMin,
+    newB = photoBlue,
+    newW = photoWhite,
+    newU = photoUv
+  ) => {
+    setPhotoStart(newStart);
+    setPhotoEnd(newEnd);
+    setPhotoRampMin(newRamp);
+    setPhotoBlue(newB);
+    setPhotoWhite(newW);
+    setPhotoUv(newU);
+
+    const kfs = buildPhotoperiodKeyframes(newStart, newEnd, newRamp, newB, newW, newU);
+    const updated: Schedule = {
+      id: 'reef_growth',
+      name: 'Reef Growth (9h Daily)',
+      keyframes: kfs,
+    };
+    setSchedules([updated]);
+  };
+
+  const handleSavePhotoperiod = () => {
+    const kfs = buildPhotoperiodKeyframes(photoStart, photoEnd, photoRampMin, photoBlue, photoWhite, photoUv);
+    const updated: Schedule = {
+      id: 'reef_growth',
+      name: 'Reef Growth (9h Daily)',
+      keyframes: kfs,
+    };
+    setSchedules([updated]);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reef_schedules', JSON.stringify([updated]));
+    }
+    publishSchedule(updated);
+
+    const allDays: WeeklyAssignment = {
+      mon: 'reef_growth',
+      tue: 'reef_growth',
+      wed: 'reef_growth',
+      thu: 'reef_growth',
+      fri: 'reef_growth',
+      sat: 'reef_growth',
+      sun: 'reef_growth',
+    };
+    setWeekly(allDays);
+    publishWeekly(allDays);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reef_weekly', JSON.stringify(allDays));
+    }
+
+    setDailySavedSuccess(true);
+    setTimeout(() => setDailySavedSuccess(false), 3000);
   };
 
   const handleAddKeyframe = () => {
@@ -344,75 +382,212 @@ export default function UnifiedSchedulePage() {
       {/* ========================================================================= */}
       {activeTab === 'daily' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-          {/* Active Schedule Selection & Actions */}
-          <div className="card-elevated" style={{ padding: '1.2rem' }}>
+          {/* Photoperiod Builder Card */}
+          <div className="card-elevated" style={{ padding: '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
               <div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  Active Daylight Program
+                  Daily Photoperiod Program
                 </span>
-                <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {activeSchedule.name}
                 </div>
               </div>
 
               <button
-                onClick={handleSaveDaily}
+                onClick={handleSavePhotoperiod}
                 className="btn-primary"
                 style={{
                   width: 'auto',
-                  padding: '0.5rem 1rem',
-                  fontSize: '0.78rem',
+                  padding: '0.55rem 1.15rem',
+                  fontSize: '0.82rem',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
+                  gap: '0.45rem',
                   background: dailySavedSuccess ? '#10b981' : '#ffffff',
                   color: '#000000',
+                  fontWeight: 700,
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
                 }}
               >
-                {dailySavedSuccess ? <Check size={14} /> : <Save size={14} />}
-                <span>{dailySavedSuccess ? 'Pushed to ESP32' : 'Save to Device'}</span>
+                {dailySavedSuccess ? <Check size={16} /> : <Save size={16} />}
+                <span>{dailySavedSuccess ? 'Saved & Applied!' : 'Save & Apply to Light'}</span>
               </button>
             </div>
 
-            {/* Schedule Switcher Pills */}
-            <div style={{ display: 'flex', gap: '0.45rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
-              {schedules.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setActiveScheduleId(s.id)}
-                  className={`btn-pill ${s.id === activeScheduleId ? 'active' : ''}`}
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </div>
-
-            {/* Multi-Week Progression Banner */}
+            {/* Quick 9h Daylight Summary Banner */}
             <div
               style={{
-                marginTop: '0.75rem',
-                padding: '0.65rem 0.85rem',
+                padding: '0.75rem 0.95rem',
                 borderRadius: 'var(--radius-sm)',
                 background: 'rgba(56, 189, 248, 0.08)',
                 border: '1px solid rgba(56, 189, 248, 0.25)',
                 display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.55rem',
-                fontSize: '0.72rem',
+                alignItems: 'center',
+                gap: '0.75rem',
+                fontSize: '0.78rem',
                 color: '#38bdf8',
-                lineHeight: 1.4,
+                marginBottom: '1.15rem',
               }}
             >
-              <Sparkles size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <strong>Reef Growth 3-Week Progression (15:30 to 21:30 Linear Ramps):</strong>
-                <div style={{ color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  • <strong>Week 1 (Today, Sep 20 – Sep 26):</strong> Peak 20% Blue / 12% White / 6% UV<br />
-                  • <strong>Week 2 (Starts Sep 27):</strong> Peak 25% Blue / 15% White / 8% UV<br />
-                  • <strong>Week 3 Onward (Starts Oct 04):</strong> Peak 30% Blue / 18% White / 10% UV
+              <Clock size={18} style={{ flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                <span style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.84rem' }}>
+                  {photoStart} to {photoEnd} • 9.0 Hours Total Daily Photoperiod
+                </span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.74rem' }}>
+                  Sunrise ramp ({photoRampMin}m) • Daylight Peak ({photoBlue}% Blue, {photoUv}% UV, {photoWhite}% White) • Sunset ramp ({photoRampMin}m)
+                </span>
+              </div>
+            </div>
+
+            {/* Timing Controls (Start, End, Ramp) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                  Lights On (Start)
+                </label>
+                <input
+                  type="time"
+                  value={photoStart}
+                  onChange={(e) => handlePhotoperiodChange(e.target.value, photoEnd, photoRampMin, photoBlue, photoWhite, photoUv)}
+                  style={{ width: '100%', padding: '0.45rem', fontSize: '0.85rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)', color: '#ffffff' }}
+                />
+              </div>
+
+              <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                  Lights Off (End)
+                </label>
+                <input
+                  type="time"
+                  value={photoEnd}
+                  onChange={(e) => handlePhotoperiodChange(photoStart, e.target.value, photoRampMin, photoBlue, photoWhite, photoUv)}
+                  style={{ width: '100%', padding: '0.45rem', fontSize: '0.85rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border-subtle)', color: '#ffffff' }}
+                />
+              </div>
+
+              <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: '0.35rem' }}>
+                  Ramp Duration
+                </label>
+                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                  {[30, 45, 60, 90].map((mins) => (
+                    <button
+                      key={mins}
+                      onClick={() => handlePhotoperiodChange(photoStart, photoEnd, mins, photoBlue, photoWhite, photoUv)}
+                      style={{
+                        flex: 1,
+                        padding: '0.45rem 0.2rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        borderRadius: 'var(--radius-sm)',
+                        background: photoRampMin === mins ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        border: photoRampMin === mins ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
+                        color: photoRampMin === mins ? '#38bdf8' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {mins}m
+                    </button>
+                  ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Target Peak Intensity Sliders */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'var(--bg-surface)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  Daylight Peak Intensities
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                  Auto-interpolated smooth linear ramps
+                </span>
+              </div>
+
+              {/* Blue Channel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-blue)' }}>
+                    Royal Blue
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={photoBlue}
+                      onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, Math.min(100, Math.max(0, Number(e.target.value))), photoWhite, photoUv)}
+                      style={{ width: '50px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 800, textAlign: 'center', borderRadius: 'var(--radius-sm)', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--channel-blue)' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-blue)' }}>%</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={photoBlue}
+                  onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, Number(e.target.value), photoWhite, photoUv)}
+                  style={{ width: '100%', accentColor: 'var(--channel-blue)', height: '6px' }}
+                />
+              </div>
+
+              {/* UV Channel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-uv)' }}>
+                    Actinic UV
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={photoUv}
+                      onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, photoBlue, photoWhite, Math.min(100, Math.max(0, Number(e.target.value))))}
+                      style={{ width: '50px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 800, textAlign: 'center', borderRadius: 'var(--radius-sm)', background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.3)', color: 'var(--channel-uv)' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-uv)' }}>%</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={photoUv}
+                  onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, photoBlue, photoWhite, Number(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--channel-uv)', height: '6px' }}
+                />
+              </div>
+
+              {/* White Channel */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-white)' }}>
+                    Day White
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={photoWhite}
+                      onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, photoBlue, Math.min(100, Math.max(0, Number(e.target.value))), photoUv)}
+                      style={{ width: '50px', padding: '0.25rem 0.4rem', fontSize: '0.82rem', fontWeight: 800, textAlign: 'center', borderRadius: 'var(--radius-sm)', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', color: 'var(--channel-white)' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--channel-white)' }}>%</span>
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={photoWhite}
+                  onChange={(e) => handlePhotoperiodChange(photoStart, photoEnd, photoRampMin, photoBlue, Number(e.target.value), photoUv)}
+                  style={{ width: '100%', accentColor: 'var(--channel-white)', height: '6px' }}
+                />
               </div>
             </div>
           </div>
@@ -516,135 +691,51 @@ export default function UnifiedSchedulePage() {
             </div>
           </div>
 
-          {/* Keyframe Timeline List */}
-          <div className="card-elevated" style={{ padding: '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-              <span style={{ fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                Keyframes ({activeSchedule.keyframes.length})
-              </span>
+          {/* Collapsible Keyframes (Optional Details) */}
+          <div className="card-elevated" style={{ padding: '1rem 1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Sliders size={14} color="var(--channel-blue)" />
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                  Detailed Keyframe Points ({activeSchedule.keyframes.length} Points)
+                </span>
+              </div>
               <button
-                onClick={() => setShowAddKf(!showAddKf)}
+                onClick={() => setShowRawKeyframes(!showRawKeyframes)}
                 className="btn-secondary"
                 style={{ padding: '0.35rem 0.65rem', fontSize: '0.72rem' }}
               >
-                <Plus size={13} />
-                <span>Add Keyframe</span>
+                <span>{showRawKeyframes ? 'Hide Details' : 'Show Details'}</span>
               </button>
             </div>
 
-            {/* Add Keyframe Inline Form */}
-            {showAddKf && (
-              <div
-                style={{
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  marginBottom: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.84rem', color: 'var(--text-primary)' }}>
-                  New Daylight Keyframe
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Time</label>
-                    <input
-                      type="time"
-                      value={newKfTime}
-                      onChange={(e) => setNewKfTime(e.target.value)}
-                      style={{ width: '100%', padding: '0.45rem', fontSize: '0.76rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: 'var(--channel-blue)' }}>Blue %</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newKfBlue}
-                      onChange={(e) => setNewKfBlue(Number(e.target.value))}
-                      style={{ width: '100%', padding: '0.45rem', fontSize: '0.76rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: 'var(--channel-white)' }}>White %</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newKfWhite}
-                      onChange={(e) => setNewKfWhite(Number(e.target.value))}
-                      style={{ width: '100%', padding: '0.45rem', fontSize: '0.76rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: 'var(--channel-uv)' }}>UV %</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newKfUv}
-                      onChange={(e) => setNewKfUv(Number(e.target.value))}
-                      style={{ width: '100%', padding: '0.45rem', fontSize: '0.76rem' }}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setShowAddKf(false)} className="btn-secondary" style={{ fontSize: '0.72rem' }}>
-                    Cancel
-                  </button>
-                  <button onClick={handleAddKeyframe} className="btn-pill active" style={{ fontSize: '0.72rem' }}>
-                    Save Point
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* List of keyframes */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {activeSchedule.keyframes.map((kf) => (
-                <div
-                  key={kf.time}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.6rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#ffffff', minWidth: '45px' }}>
+            {showRawKeyframes && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.85rem' }}>
+                {activeSchedule.keyframes.map((kf) => (
+                  <div
+                    key={kf.time}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.55rem 0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#ffffff', minWidth: '55px' }}>
                       {kf.time}
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', fontSize: '0.74rem' }}>
-                      <span style={{ color: 'var(--channel-blue)' }}>B: {kf.blue}%</span>
-                      <span style={{ color: 'var(--channel-white)' }}>W: {kf.white}%</span>
+                    <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.76rem' }}>
+                      <span style={{ color: 'var(--channel-blue)' }}>Blue: {kf.blue}%</span>
+                      <span style={{ color: 'var(--channel-white)' }}>White: {kf.white}%</span>
                       <span style={{ color: 'var(--channel-uv)' }}>UV: {kf.uv}%</span>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => handleDeleteKeyframe(kf.time)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--text-dim)',
-                      cursor: 'pointer',
-                      padding: '0.25rem',
-                    }}
-                    title="Delete Keyframe"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

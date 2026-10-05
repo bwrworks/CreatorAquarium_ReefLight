@@ -32,7 +32,9 @@ bool StorageManager::begin() {
         LittleFS.mkdir(STORAGE_SCHEDULES_DIR);
     }
 
-    if (!LittleFS.exists(STORAGE_WEEKLY_PATH) || !LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth_w1.json")) {
+    if (!LittleFS.exists(STORAGE_WEEKLY_PATH) || 
+        !LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth.json") ||
+        LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth_w1.json")) {
         seedDefaultData();
     }
 
@@ -40,87 +42,28 @@ bool StorageManager::begin() {
 }
 
 void StorageManager::seedDefaultData() {
-    Serial.println("[STORAGE] Seeding Reef Growth multi-week schedules and weekly assignment...");
+    Serial.println("[STORAGE] Seeding Reef Growth 9h Photoperiod (12:00-21:00, 50% Blue, 25% White, 40% UV)...");
 
     // Remove legacy schedule files
     deleteSchedule("natural_reef");
     deleteSchedule("deep_coral_pop");
+    deleteSchedule("reef_growth_w1");
+    deleteSchedule("reef_growth_w2");
+    deleteSchedule("reef_growth_w3");
 
-    // Week 1 Schedule: 15:30 to 21:30
-    const char* reefGrowthW1Json = R"json({
-  "id": "reef_growth_w1",
-  "name": "Reef Growth (Week 1)",
-  "keyframes": [
-    { "time": "00:00", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:29", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:30", "blue": 1, "white": 0, "uv": 0 },
-    { "time": "16:00", "blue": 7, "white": 2, "uv": 2 },
-    { "time": "16:30", "blue": 13, "white": 5, "uv": 4 },
-    { "time": "17:00", "blue": 20, "white": 12, "uv": 6 },
-    { "time": "20:00", "blue": 20, "white": 12, "uv": 6 },
-    { "time": "20:30", "blue": 13, "white": 5, "uv": 4 },
-    { "time": "21:00", "blue": 7, "white": 2, "uv": 2 },
-    { "time": "21:30", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "23:59", "blue": 0, "white": 0, "uv": 0 }
-  ]
-})json";
-    saveSchedule(String(reefGrowthW1Json));
-
-    // Week 2 Schedule: 15:30 to 21:30
-    const char* reefGrowthW2Json = R"json({
-  "id": "reef_growth_w2",
-  "name": "Reef Growth (Week 2)",
-  "keyframes": [
-    { "time": "00:00", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:29", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:30", "blue": 2, "white": 0, "uv": 0 },
-    { "time": "16:00", "blue": 8, "white": 2, "uv": 3 },
-    { "time": "16:30", "blue": 17, "white": 7, "uv": 5 },
-    { "time": "17:00", "blue": 25, "white": 15, "uv": 8 },
-    { "time": "20:00", "blue": 25, "white": 15, "uv": 8 },
-    { "time": "20:30", "blue": 17, "white": 7, "uv": 5 },
-    { "time": "21:00", "blue": 8, "white": 2, "uv": 3 },
-    { "time": "21:30", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "23:59", "blue": 0, "white": 0, "uv": 0 }
-  ]
-})json";
-    saveSchedule(String(reefGrowthW2Json));
-
-    // Week 3 Schedule: 15:30 to 21:30
-    const char* reefGrowthW3Json = R"json({
-  "id": "reef_growth_w3",
-  "name": "Reef Growth (Week 3+)",
-  "keyframes": [
-    { "time": "00:00", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:29", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:30", "blue": 2, "white": 0, "uv": 0 },
-    { "time": "16:00", "blue": 10, "white": 3, "uv": 3 },
-    { "time": "16:30", "blue": 20, "white": 8, "uv": 6 },
-    { "time": "17:00", "blue": 30, "white": 18, "uv": 10 },
-    { "time": "20:00", "blue": 30, "white": 18, "uv": 10 },
-    { "time": "20:30", "blue": 20, "white": 8, "uv": 6 },
-    { "time": "21:00", "blue": 10, "white": 3, "uv": 3 },
-    { "time": "21:30", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "23:59", "blue": 0, "white": 0, "uv": 0 }
-  ]
-})json";
-    saveSchedule(String(reefGrowthW3Json));
-
-    // Base reef_growth alias (defaults to Week 1 initial)
+    // Clean 9h Photoperiod: 12:00 to 21:00
+    // Ramp up: 12:00 to 13:00 (1h)
+    // Daylight Peak: 13:00 to 20:00 (7h peak at Blue 50%, White 25%, UV 40%)
+    // Ramp down: 20:00 to 21:00 (1h)
     const char* reefGrowthJson = R"json({
   "id": "reef_growth",
-  "name": "Reef Growth (Auto)",
+  "name": "Reef Growth (9h Daily)",
   "keyframes": [
     { "time": "00:00", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:29", "blue": 0, "white": 0, "uv": 0 },
-    { "time": "15:30", "blue": 1, "white": 0, "uv": 0 },
-    { "time": "16:00", "blue": 7, "white": 2, "uv": 2 },
-    { "time": "16:30", "blue": 13, "white": 5, "uv": 4 },
-    { "time": "17:00", "blue": 20, "white": 12, "uv": 6 },
-    { "time": "20:00", "blue": 20, "white": 12, "uv": 6 },
-    { "time": "20:30", "blue": 13, "white": 5, "uv": 4 },
-    { "time": "21:00", "blue": 7, "white": 2, "uv": 2 },
-    { "time": "21:30", "blue": 0, "white": 0, "uv": 0 },
+    { "time": "12:00", "blue": 0, "white": 0, "uv": 0 },
+    { "time": "13:00", "blue": 50, "white": 25, "uv": 40 },
+    { "time": "20:00", "blue": 50, "white": 25, "uv": 40 },
+    { "time": "21:00", "blue": 0, "white": 0, "uv": 0 },
     { "time": "23:59", "blue": 0, "white": 0, "uv": 0 }
   ]
 })json";
@@ -176,32 +119,8 @@ bool StorageManager::deleteSchedule(const String& id) {
 }
 
 bool StorageManager::loadSchedule(const String& id, ScheduleData& outSchedule) {
-    if (id == "natural_reef") {
+    if (id == "natural_reef" || id == "reef_growth_w1" || id == "reef_growth_w2" || id == "reef_growth_w3") {
         return loadSchedule("reef_growth", outSchedule);
-    }
-
-    if (id == "reef_growth") {
-        // Multi-week Reef Growth progression
-        // Start week 1: Sep 20, 2026 (epoch 1789862400)
-        // Week 2: Sep 27, 2026 (+ 7 days = 1790467200)
-        // Week 3+: Oct 04, 2026 (+ 14 days = 1791072000)
-        time_t nowSec = rtcManager.getEpoch();
-        String activeWeekId = "reef_growth_w1";
-        if (nowSec >= 1791072000ULL) {
-            activeWeekId = "reef_growth_w3";
-        } else if (nowSec >= 1790467200ULL) {
-            activeWeekId = "reef_growth_w2";
-        } else {
-            activeWeekId = "reef_growth_w1";
-        }
-
-        if (loadSchedule(activeWeekId, outSchedule)) {
-            outSchedule.id = "reef_growth";
-            outSchedule.name = (activeWeekId == "reef_growth_w3") ? "Reef Growth (Week 3+)" :
-                               (activeWeekId == "reef_growth_w2") ? "Reef Growth (Week 2)" :
-                                                                    "Reef Growth (Week 1)";
-            return true;
-        }
     }
 
     String path = String(STORAGE_SCHEDULES_DIR) + "/" + id + ".json";
@@ -359,12 +278,13 @@ void StorageManager::setTimezoneOffset(long offsetSec) {
 }
 
 int StorageManager::getDisplayBrightness() {
-    int b = prefs.getInt("disp_bright", 180);
-    if (b < 50) b = 180; // Always boot visible after power loss
+    int b = prefs.getInt("disp_bright", 200);
+    if (b < 50) b = 200; // Always boot visible after power loss
     return b;
 }
 
 void StorageManager::setDisplayBrightness(int brightness) {
+    if (brightness > 0 && brightness < 50) brightness = 50;
     prefs.putInt("disp_bright", brightness);
 }
 
