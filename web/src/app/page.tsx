@@ -53,7 +53,7 @@ const QUICK_PRESETS: Preset[] = [
   },
   {
     id: 'daylight_natural',
-    name: 'Daylight 9h',
+    name: 'Daylight Peak',
     icon: Sun,
     channels: { blue: 50, white: 25, uv: 40 },
     fan: 40,
@@ -455,7 +455,7 @@ export default function HomePage() {
               )}
             </div>
             <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {isManual ? 'Manual Control Active' : (deviceState.activeScheduleId?.startsWith('reef_growth') ? 'Reef Growth Daylight' : (deviceState.activeScheduleId === 'natural_reef' ? 'Natural Reef Daylight' : 'Custom Daily Curve'))}
+              {isManual ? 'Manual Control Active' : (deviceState.activeScheduleName || (deviceState.activeScheduleId?.startsWith('reef_growth') ? 'Reef Growth Daylight' : (deviceState.activeScheduleId === 'natural_reef' ? 'Natural Reef Daylight' : 'Custom Daily Curve')))}
             </div>
           </div>
 

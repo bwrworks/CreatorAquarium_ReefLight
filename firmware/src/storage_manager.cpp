@@ -22,27 +22,70 @@ bool StorageManager::begin() {
         if (!LittleFS.begin(true)) {
             Serial.println("[STORAGE] LittleFS Critical Failure!");
             mounted = false;
-            return false;
+        } else {
+            mounted = true;
         }
+    } else {
+        mounted = true;
     }
 
-    mounted = true;
-
-    if (!LittleFS.exists(STORAGE_SCHEDULES_DIR)) {
+    if (mounted && !LittleFS.exists(STORAGE_SCHEDULES_DIR)) {
         LittleFS.mkdir(STORAGE_SCHEDULES_DIR);
     }
 
-    if (!LittleFS.exists(STORAGE_WEEKLY_PATH) || 
-        !LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth.json") ||
-        LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth_w1.json")) {
+    // Clean legacy schedule files if they exist
+    if (mounted) {
+        deleteSchedule("reef_growth_w1");
+        deleteSchedule("reef_growth_w2");
+        deleteSchedule("reef_growth_w3");
+    }
+
+    // Check if user has schedule saved in NVS or LittleFS
+    bool hasLittleFsSchedule = mounted && LittleFS.exists(String(STORAGE_SCHEDULES_DIR) + "/reef_growth.json");
+    bool hasNvsSchedule = prefs.isKey("sched_growth") || prefs.isKey("last_sched_js");
+
+    if (hasNvsSchedule && !hasLittleFsSchedule) {
+        // Restore schedule from NVS to LittleFS after flash formatting or power loss
+        String nvsSched = prefs.getString("sched_growth", prefs.getString("last_sched_js", ""));
+        if (nvsSched.length() > 0) {
+            saveSchedule(nvsSched);
+            Serial.println("[STORAGE] Restored user schedule from NVS to LittleFS");
+        }
+    } else if (!hasLittleFsSchedule && !hasNvsSchedule) {
         seedDefaultData();
+    }
+
+    // Check weekly assignment
+    bool hasLittleFsWeekly = mounted && LittleFS.exists(STORAGE_WEEKLY_PATH);
+    bool hasNvsWeekly = prefs.isKey("saved_weekly");
+    if (hasNvsWeekly && !hasLittleFsWeekly) {
+        String nvsWeekly = prefs.getString("saved_weekly", "");
+        if (nvsWeekly.length() > 0) {
+            saveWeeklyAssignment(nvsWeekly);
+        }
+    } else if (!hasLittleFsWeekly && !hasNvsWeekly) {
+        const char* defaultWeeklyJson = R"json({
+  "mon": "reef_growth",
+  "tue": "reef_growth",
+  "wed": "reef_growth",
+  "thu": "reef_growth",
+  "fri": "reef_growth",
+  "sat": "reef_growth",
+  "sun": "reef_growth"
+})json";
+        saveWeeklyAssignment(String(defaultWeeklyJson));
     }
 
     return true;
 }
 
 void StorageManager::seedDefaultData() {
-    Serial.println("[STORAGE] Seeding Reef Growth 9h Photoperiod (12:00-21:00, 50% Blue, 25% White, 40% UV)...");
+    if (prefs.isKey("sched_growth") || prefs.isKey("last_sched_js")) {
+        Serial.println("[STORAGE] User schedule exists in NVS; skipping default seed.");
+        return;
+    }
+
+    Serial.println("[STORAGE] Seeding initial default Reef Growth 9h Photoperiod (12:00-21:00)...");
 
     // Remove legacy schedule files
     deleteSchedule("natural_reef");
@@ -97,16 +140,22 @@ bool StorageManager::saveSchedule(const String& jsonStr) {
         return false;
     }
 
-    String path = String(STORAGE_SCHEDULES_DIR) + "/" + id + ".json";
-    File f = LittleFS.open(path.c_str(), "w");
-    if (!f) {
-        Serial.printf("[STORAGE] Failed to open file for writing: %s\n", path.c_str());
-        return false;
+    // Always mirror to NVS for non-volatile survival across any power loss / filesystem wipes
+    if (String(id) == "reef_growth") {
+        prefs.putString("sched_growth", jsonStr);
     }
+    prefs.putString("last_sched_id", id);
+    prefs.putString("last_sched_js", jsonStr);
 
-    serializeJson(doc, f);
-    f.close();
-    Serial.printf("[STORAGE] Schedule '%s' saved successfully\n", id);
+    if (mounted) {
+        String path = String(STORAGE_SCHEDULES_DIR) + "/" + id + ".json";
+        File f = LittleFS.open(path.c_str(), "w");
+        if (f) {
+            serializeJson(doc, f);
+            f.close();
+        }
+    }
+    Serial.printf("[STORAGE] Schedule '%s' saved successfully (LittleFS + NVS)\n", id);
     return true;
 }
 
@@ -123,21 +172,44 @@ bool StorageManager::loadSchedule(const String& id, ScheduleData& outSchedule) {
         return loadSchedule("reef_growth", outSchedule);
     }
 
+    String jsonStr = "";
     String path = String(STORAGE_SCHEDULES_DIR) + "/" + id + ".json";
-    if (!LittleFS.exists(path.c_str())) {
-        Serial.printf("[STORAGE] Schedule file not found: %s\n", path.c_str());
+
+    if (mounted && LittleFS.exists(path.c_str())) {
+        File f = LittleFS.open(path.c_str(), "r");
+        if (f) {
+            jsonStr = f.readString();
+            f.close();
+        }
+    }
+
+    // Fallback to NVS if file is missing from LittleFS
+    if (jsonStr.length() < 10) {
+        if (id == "reef_growth") {
+            jsonStr = prefs.getString("sched_growth", "");
+        }
+        if (jsonStr.length() < 10 && prefs.getString("last_sched_id", "") == id) {
+            jsonStr = prefs.getString("last_sched_js", "");
+        }
+        if (jsonStr.length() >= 10 && mounted) {
+            Serial.printf("[STORAGE] Restored schedule '%s' from NVS backup\n", id.c_str());
+            File f = LittleFS.open(path.c_str(), "w");
+            if (f) {
+                f.print(jsonStr);
+                f.close();
+            }
+        }
+    }
+
+    if (jsonStr.length() < 10) {
+        Serial.printf("[STORAGE] Schedule '%s' not found in LittleFS or NVS\n", id.c_str());
         return false;
     }
 
-    File f = LittleFS.open(path.c_str(), "r");
-    if (!f) return false;
-
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, f);
-    f.close();
-
+    DeserializationError error = deserializeJson(doc, jsonStr);
     if (error) {
-        Serial.printf("[STORAGE] Error parsing schedule file: %s\n", error.c_str());
+        Serial.printf("[STORAGE] Error parsing schedule JSON: %s\n", error.c_str());
         return false;
     }
 
@@ -202,26 +274,46 @@ bool StorageManager::saveWeeklyAssignment(const String& jsonStr) {
         return false;
     }
 
-    File f = LittleFS.open(STORAGE_WEEKLY_PATH, "w");
-    if (!f) return false;
-    serializeJson(doc, f);
-    f.close();
-    Serial.println("[STORAGE] Weekly assignment saved successfully");
+    prefs.putString("saved_weekly", jsonStr);
+
+    if (mounted) {
+        File f = LittleFS.open(STORAGE_WEEKLY_PATH, "w");
+        if (f) {
+            serializeJson(doc, f);
+            f.close();
+        }
+    }
+    Serial.println("[STORAGE] Weekly assignment saved successfully (LittleFS + NVS)");
     return true;
 }
 
 bool StorageManager::loadWeeklyAssignment(WeeklyAssignmentData& outWeekly) {
-    if (!LittleFS.exists(STORAGE_WEEKLY_PATH)) {
-        seedDefaultData();
+    String jsonStr = "";
+    if (mounted && LittleFS.exists(STORAGE_WEEKLY_PATH)) {
+        File f = LittleFS.open(STORAGE_WEEKLY_PATH, "r");
+        if (f) {
+            jsonStr = f.readString();
+            f.close();
+        }
     }
 
-    File f = LittleFS.open(STORAGE_WEEKLY_PATH, "r");
-    if (!f) return false;
+    if (jsonStr.length() < 10) {
+        jsonStr = prefs.getString("saved_weekly", "");
+    }
+
+    if (jsonStr.length() < 10) {
+        outWeekly.mon = "reef_growth";
+        outWeekly.tue = "reef_growth";
+        outWeekly.wed = "reef_growth";
+        outWeekly.thu = "reef_growth";
+        outWeekly.fri = "reef_growth";
+        outWeekly.sat = "reef_growth";
+        outWeekly.sun = "reef_growth";
+        return true;
+    }
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, f);
-    f.close();
-
+    DeserializationError error = deserializeJson(doc, jsonStr);
     if (error) return false;
 
     outWeekly.mon = doc["mon"] | "reef_growth";

@@ -13,6 +13,8 @@ struct DeviceStateSnapshot {
     String manualOverrideExpiresAt;  // ISO string or empty
     long manualOverrideRemainingSec; // Seconds remaining in manual override (0 if auto)
     String activeScheduleId;
+    String activeScheduleName;
+    std::vector<KeyframeData> activeScheduleKeyframes;
     AcclimationData acclimation;
     int acclimationDaysElapsed;      // Actual computed elapsed days (e.g. 3)
     float acclimationCurrentScale;   // Actual computed current intensity scale (e.g. 62.5%)

@@ -37,6 +37,8 @@ export type DeviceState = {
   live: Channels & { fan: number };
   manualOverrideExpiresAt: string | null; // ISO timestamp
   activeScheduleId: string;
+  activeScheduleName?: string;
+  activeScheduleKeyframes?: Keyframe[];
   acclimation: Acclimation;
   time: string; // device's current time, ISO
   wifiConnected: boolean;

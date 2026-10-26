@@ -165,6 +165,18 @@ void MqttManager::publishState() {
     }
 
     doc["activeScheduleId"] = state.activeScheduleId;
+    doc["activeScheduleName"] = state.activeScheduleName;
+
+    if (state.activeScheduleKeyframes.size() >= 2) {
+        JsonArray kfs = doc["activeScheduleKeyframes"].to<JsonArray>();
+        for (const auto& k : state.activeScheduleKeyframes) {
+            JsonObject ko = kfs.add<JsonObject>();
+            ko["time"] = k.timeStr;
+            ko["blue"] = k.blue;
+            ko["white"] = k.white;
+            ko["uv"] = k.uv;
+        }
+    }
 
     if (state.acclimation.active) {
         JsonObject acc = doc["acclimation"].to<JsonObject>();
@@ -186,7 +198,7 @@ void MqttManager::publishState() {
     doc["fanManualOverride"] = state.fanManualOverride;
     doc["displayBrightness"] = state.displayBrightness;
 
-    char buffer[1024];
+    char buffer[1536];
     size_t len = serializeJson(doc, buffer, sizeof(buffer));
 
     // Retained QoS 1 publish
@@ -333,9 +345,13 @@ void MqttManager::handleIncomingMessage(char* topic, byte* payload, unsigned int
             snprintf(peakEndStr, sizeof(peakEndStr), "%02d:%02d", peakEndMin / 60, peakEndMin % 60);
             snprintf(endStr, sizeof(endStr), "%02d:%02d", endMin / 60, endMin % 60);
 
+            char dynamicName[64];
+            float durHours = (endMin - startMin) / 60.0f;
+            snprintf(dynamicName, sizeof(dynamicName), "Reef Growth (%.1fh: %s-%s)", durHours, startStr, endStr);
+
             JsonDocument schedDoc;
             schedDoc["id"] = "reef_growth";
-            schedDoc["name"] = "Reef Growth (9h Daily)";
+            schedDoc["name"] = dynamicName;
             JsonArray kfs = schedDoc["keyframes"].to<JsonArray>();
 
             JsonObject k0 = kfs.add<JsonObject>(); k0["time"] = "00:00"; k0["blue"] = 0; k0["white"] = 0; k0["uv"] = 0;

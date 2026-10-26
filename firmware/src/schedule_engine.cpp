@@ -518,6 +518,8 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.live = ledcDriver.getAppliedValues();
         snap.live.fan = currentFan;
         snap.activeScheduleId = currentActiveScheduleId;
+        snap.activeScheduleName = activeSchedule.name;
+        snap.activeScheduleKeyframes = activeSchedule.keyframes;
         snap.acclimation = acclimation;
         snap.time = rtcManager.getNowISO();
         snap.wifiConnected = wifiConn;

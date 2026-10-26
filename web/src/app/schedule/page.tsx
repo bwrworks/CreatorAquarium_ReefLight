@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDeviceMqtt } from '../../lib/MqttContext';
 import { Schedule, Keyframe, Channels, WeeklyAssignment } from '../../lib/types';
 import { SpectrumVisualizer } from '../../components/SpectrumVisualizer';
@@ -67,10 +67,33 @@ function buildPhotoperiodKeyframes(
   ];
 }
 
+function calculatePhotoperiodHours(start: string, end: string): string {
+  const [sh, sm] = (start || '12:00').split(':').map(Number);
+  const [eh, em] = (end || '21:00').split(':').map(Number);
+  let startMin = (sh || 0) * 60 + (sm || 0);
+  let endMin = (eh || 0) * 60 + (em || 0);
+  if (endMin <= startMin) endMin += 1440;
+  return ((endMin - startMin) / 60).toFixed(1);
+}
+
+function extractPhotoperiod(kfs: Keyframe[]) {
+  if (!kfs || kfs.length < 5) return null;
+  const start = kfs[1]?.time || '12:00';
+  const peakStart = kfs[2]?.time || '13:00';
+  const end = kfs[kfs.length - 2]?.time || '21:00';
+  const [sh, sm] = start.split(':').map(Number);
+  const [psh, psm] = peakStart.split(':').map(Number);
+  const rampMin = Math.max(15, (psh * 60 + psm) - (sh * 60 + sm)) || 60;
+  const blue = kfs[2]?.blue ?? 50;
+  const white = kfs[2]?.white ?? 25;
+  const uv = kfs[2]?.uv ?? 40;
+  return { start, end, rampMin, blue, white, uv };
+}
+
 const DEFAULT_SCHEDULES: Schedule[] = [
   {
     id: 'reef_growth',
-    name: 'Reef Growth (9h Daily)',
+    name: 'Reef Growth Daylight',
     keyframes: DEFAULT_KEYFRAMES,
   },
 ];
@@ -131,14 +154,78 @@ export default function UnifiedSchedulePage() {
     return DEFAULT_SCHEDULES;
   });
 
-  // Daily Photoperiod Builder State (Defaults: 12:00 to 21:00, 50% Blue, 40% UV, 25% White, 60m ramp)
-  const [photoStart, setPhotoStart] = useState<string>('12:00');
-  const [photoEnd, setPhotoEnd] = useState<string>('21:00');
-  const [photoRampMin, setPhotoRampMin] = useState<number>(60);
-  const [photoBlue, setPhotoBlue] = useState<number>(50);
-  const [photoUv, setPhotoUv] = useState<number>(40);
-  const [photoWhite, setPhotoWhite] = useState<number>(25);
+  // Daily Photoperiod Builder State initialized from localStorage or existing saved schedule
+  const initialParams = useMemo(() => {
+    if (typeof window !== 'undefined') {
+      const savedParams = localStorage.getItem('reef_photoperiod');
+      if (savedParams) {
+        try {
+          const parsed = JSON.parse(savedParams);
+          if (parsed && parsed.start && parsed.end) return parsed;
+        } catch {}
+      }
+      const savedScheds = localStorage.getItem('reef_schedules');
+      if (savedScheds) {
+        try {
+          const parsed = JSON.parse(savedScheds);
+          if (Array.isArray(parsed) && parsed[0]?.keyframes) {
+            const extracted = extractPhotoperiod(parsed[0].keyframes);
+            if (extracted) return extracted;
+          }
+        } catch {}
+      }
+    }
+    return {
+      start: '12:00',
+      end: '21:00',
+      rampMin: 60,
+      blue: 50,
+      uv: 40,
+      white: 25,
+    };
+  }, []);
+
+  const [photoStart, setPhotoStart] = useState<string>(() => initialParams.start);
+  const [photoEnd, setPhotoEnd] = useState<string>(() => initialParams.end);
+  const [photoRampMin, setPhotoRampMin] = useState<number>(() => initialParams.rampMin);
+  const [photoBlue, setPhotoBlue] = useState<number>(() => initialParams.blue);
+  const [photoUv, setPhotoUv] = useState<number>(() => initialParams.uv);
+  const [photoWhite, setPhotoWhite] = useState<number>(() => initialParams.white);
   const [showRawKeyframes, setShowRawKeyframes] = useState<boolean>(false);
+
+  // Dynamic sync when device publishes its live hardware schedule
+  const hasSyncedHardwareRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (
+      deviceState.activeScheduleKeyframes &&
+      deviceState.activeScheduleKeyframes.length >= 5 &&
+      !hasSyncedHardwareRef.current
+    ) {
+      const extracted = extractPhotoperiod(deviceState.activeScheduleKeyframes);
+      if (extracted) {
+        hasSyncedHardwareRef.current = true;
+        setPhotoStart(extracted.start);
+        setPhotoEnd(extracted.end);
+        setPhotoRampMin(extracted.rampMin);
+        setPhotoBlue(extracted.blue);
+        setPhotoWhite(extracted.white);
+        setPhotoUv(extracted.uv);
+
+        const dur = calculatePhotoperiodHours(extracted.start, extracted.end);
+        const name = deviceState.activeScheduleName || `Reef Growth (${dur}h: ${extracted.start}-${extracted.end})`;
+        const updated: Schedule = {
+          id: deviceState.activeScheduleId || 'reef_growth',
+          name,
+          keyframes: deviceState.activeScheduleKeyframes,
+        };
+        setSchedules([updated]);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('reef_photoperiod', JSON.stringify(extracted));
+          localStorage.setItem('reef_schedules', JSON.stringify([updated]));
+        }
+      }
+    }
+  }, [deviceState.activeScheduleKeyframes, deviceState.activeScheduleName, deviceState.activeScheduleId]);
 
   // Daily Curve Tab state
   const [activeScheduleId, setActiveScheduleId] = useState<string>('reef_growth');
@@ -244,25 +331,42 @@ export default function UnifiedSchedulePage() {
     setPhotoWhite(newW);
     setPhotoUv(newU);
 
+    const dur = calculatePhotoperiodHours(newStart, newEnd);
+    const dynamicName = `Reef Growth (${dur}h: ${newStart}-${newEnd})`;
+
     const kfs = buildPhotoperiodKeyframes(newStart, newEnd, newRamp, newB, newW, newU);
     const updated: Schedule = {
       id: 'reef_growth',
-      name: 'Reef Growth (9h Daily)',
+      name: dynamicName,
       keyframes: kfs,
     };
     setSchedules([updated]);
   };
 
   const handleSavePhotoperiod = () => {
+    const dur = calculatePhotoperiodHours(photoStart, photoEnd);
+    const dynamicName = `Reef Growth (${dur}h: ${photoStart}-${photoEnd})`;
+
     const kfs = buildPhotoperiodKeyframes(photoStart, photoEnd, photoRampMin, photoBlue, photoWhite, photoUv);
     const updated: Schedule = {
       id: 'reef_growth',
-      name: 'Reef Growth (9h Daily)',
+      name: dynamicName,
       keyframes: kfs,
     };
     setSchedules([updated]);
     if (typeof window !== 'undefined') {
       localStorage.setItem('reef_schedules', JSON.stringify([updated]));
+      localStorage.setItem(
+        'reef_photoperiod',
+        JSON.stringify({
+          start: photoStart,
+          end: photoEnd,
+          rampMin: photoRampMin,
+          blue: photoBlue,
+          white: photoWhite,
+          uv: photoUv,
+        })
+      );
     }
     publishSchedule(updated);
 
@@ -433,7 +537,7 @@ export default function UnifiedSchedulePage() {
               <Clock size={18} style={{ flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
                 <span style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.84rem' }}>
-                  {photoStart} to {photoEnd} • 9.0 Hours Total Daily Photoperiod
+                  {photoStart} to {photoEnd} • {calculatePhotoperiodHours(photoStart, photoEnd)} Hours Total Daily Photoperiod
                 </span>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.74rem' }}>
                   Sunrise ramp ({photoRampMin}m) • Daylight Peak ({photoBlue}% Blue, {photoUv}% UV, {photoWhite}% White) • Sunset ramp ({photoRampMin}m)
