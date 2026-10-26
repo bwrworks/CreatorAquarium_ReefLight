@@ -145,7 +145,19 @@ export default function UnifiedSchedulePage() {
           if (Array.isArray(parsed) && parsed.length > 0) {
             const hasLegacy = parsed.some((s: Schedule) => s.id === 'reef_growth_w1' || s.id === 'natural_reef');
             if (!hasLegacy && parsed.find((s: Schedule) => s.id === 'reef_growth')) {
-              return parsed;
+              const cleaned = parsed.map((s: Schedule) => {
+                if (s.id === 'reef_growth' && s.name && (s.name.includes('9h') || s.name.includes('9.0h'))) {
+                  const extracted = extractPhotoperiod(s.keyframes);
+                  if (extracted) {
+                    const dur = calculatePhotoperiodHours(extracted.start, extracted.end);
+                    return { ...s, name: `Reef Growth (${dur}h: ${extracted.start}-${extracted.end})` };
+                  }
+                  return { ...s, name: 'Reef Growth Photoperiod' };
+                }
+                return s;
+              });
+              localStorage.setItem('reef_schedules', JSON.stringify(cleaned));
+              return cleaned;
             }
           }
         } catch {}
@@ -491,10 +503,10 @@ export default function UnifiedSchedulePage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
               <div>
                 <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                  Daily Photoperiod Program
+                  Daily Photoperiod Program ({calculatePhotoperiodHours(photoStart, photoEnd)}h)
                 </span>
                 <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {activeSchedule.name}
+                  {`Reef Growth (${calculatePhotoperiodHours(photoStart, photoEnd)}h Daily: ${photoStart} – ${photoEnd})`}
                 </div>
               </div>
 

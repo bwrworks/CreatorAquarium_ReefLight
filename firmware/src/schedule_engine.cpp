@@ -518,7 +518,20 @@ DeviceStateSnapshot ScheduleEngine::getStateSnapshot(bool wifiConn, bool cloudCo
         snap.live = ledcDriver.getAppliedValues();
         snap.live.fan = currentFan;
         snap.activeScheduleId = currentActiveScheduleId;
-        snap.activeScheduleName = activeSchedule.name;
+        String sName = activeSchedule.name;
+        if (sName.indexOf("9h") >= 0 || sName.indexOf("9.0h") >= 0) {
+            if (activeSchedule.keyframes.size() >= 5) {
+                int st = activeSchedule.keyframes[1].timeSec;
+                int en = activeSchedule.keyframes[activeSchedule.keyframes.size() - 2].timeSec;
+                float dH = (en > st) ? (en - st) / 3600.0f : ((86400 - st) + en) / 3600.0f;
+                char b[64];
+                snprintf(b, sizeof(b), "Reef Growth (%.1fh: %s-%s)", dH,
+                         activeSchedule.keyframes[1].timeStr.c_str(),
+                         activeSchedule.keyframes[activeSchedule.keyframes.size() - 2].timeStr.c_str());
+                sName = String(b);
+            }
+        }
+        snap.activeScheduleName = sName;
         snap.activeScheduleKeyframes = activeSchedule.keyframes;
         snap.acclimation = acclimation;
         snap.time = rtcManager.getNowISO();

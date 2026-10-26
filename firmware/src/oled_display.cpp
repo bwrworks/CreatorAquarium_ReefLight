@@ -303,14 +303,23 @@ void OledDisplayManager::renderView0(const DeviceStateSnapshot& state, const Str
         lastScheduleId = state.activeScheduleId;
     }
 
-    // 7. Live Sun-Tracking Dot along the Rainbow Arch (12:00 to 21:00 = 43200 to 75600 sec)
+    // 7. Live Sun-Tracking Dot along the Rainbow Arch (dynamic based on active schedule)
     time_t rawEpoch = rtcManager.getEpoch() + rtcManager.getTimezoneOffset();
     struct tm* ti = gmtime(&rawEpoch);
     int secOfDay = ti->tm_hour * 3600 + ti->tm_min * 60 + ti->tm_sec;
 
+    int startSec = 54000; // 15:00 default (3 PM)
+    int endSec = 75600;   // 21:00 default (9 PM)
+    if (state.activeScheduleKeyframes.size() >= 5) {
+        startSec = state.activeScheduleKeyframes[1].timeSec;
+        endSec = state.activeScheduleKeyframes[state.activeScheduleKeyframes.size() - 2].timeSec;
+    }
+    int photoperiodSec = (endSec > startSec) ? (endSec - startSec) : 21600;
+
     int newSunX = 11, newSunY = 96;
-    if (secOfDay >= 43200 && secOfDay <= 75600) { // 12:00 to 21:00 (9h photoperiod)
-        float prog = (float)(secOfDay - 43200) / 32400.0f; // 9 hours = 32400 seconds
+    bool isDaylight = (secOfDay >= startSec && secOfDay <= endSec);
+    if (isDaylight) {
+        float prog = (float)(secOfDay - startSec) / (float)photoperiodSec;
         prog = constrain(prog, 0.0f, 1.0f);
         newSunX = 11 + (int)(prog * 105.0f);
         newSunY = 96 - (int)(sinf(prog * 3.14159f) * 16.0f);
@@ -323,7 +332,7 @@ void OledDisplayManager::renderView0(const DeviceStateSnapshot& state, const Str
         if (lastSunDotX >= 0) {
             drawRainbowArch(); // Redraw arch to erase previous dot cleanly
         }
-        tft.fillCircle(newSunX, newSunY, 2, (secOfDay >= 43200 && secOfDay <= 75600) ? C_WHITE : C_UV);
+        tft.fillCircle(newSunX, newSunY, 2, isDaylight ? C_WHITE : C_UV);
         lastSunDotX = newSunX;
         lastSunDotY = newSunY;
     }
