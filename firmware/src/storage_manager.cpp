@@ -421,7 +421,7 @@ void StorageManager::loadLastKnownOutputs(float& b, float& w, float& uv, float& 
     if (b <= 0.5f && w <= 0.5f && uv <= 0.5f) {
         fan = 0.0f;
     } else {
-        fan = constrain(fan, 0.0f, 28.0f);
+        fan = constrain(fan, 0.0f, 100.0f);
     }
 }
 

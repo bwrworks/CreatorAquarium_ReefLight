@@ -134,6 +134,9 @@ void ScheduleEngine::tick() {
         if (rtcManager.isTimeConfirmed()) {
             evaluateSchedule(secOfDay);
         }
+        if (fanManualOverride) {
+            ledcDriver.setFan(manualValues.fan);
+        }
     }
 
     // Defer NVS save until 3 seconds after user finishes adjusting sliders
@@ -426,7 +429,7 @@ void ScheduleEngine::setFan(float fanPct) {
     if (xSemaphoreTake(mutex, pdMS_TO_TICKS(200)) == pdTRUE) {
         bootHoldActive = false;
         // User constraint: keep fan below 30% (max 28%), or 0% when turned off
-        currentFan = (fanPct <= 0.0f) ? 0.0f : constrain(fanPct, 0.0f, 28.0f);
+        currentFan = (fanPct <= 0.0f) ? 0.0f : constrain(fanPct, 0.0f, 100.0f);
         // Guarded fan manual override: only write to NVS when flag actually flips
         if (!fanManualOverride) {
             fanManualOverride = true;

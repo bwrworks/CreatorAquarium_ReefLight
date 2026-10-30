@@ -268,6 +268,9 @@ export default function HomePage() {
   const handleFanChange = (value: number) => {
     isInteractingRef.current = true;
     if (interactionGraceTimerRef.current) clearTimeout(interactionGraceTimerRef.current);
+    if (!isManual) {
+      publishMode('manual');
+    }
 
     setFanSpeed(value);
     latestFanRef.current = value;
@@ -346,7 +349,7 @@ export default function HomePage() {
       publishFan(0);
       setFanSpeed(0);
     } else {
-      const targetFan = Math.min(28, lastActiveFanRef.current > 0 ? lastActiveFanRef.current : 25);
+      const targetFan = lastActiveFanRef.current > 0 ? lastActiveFanRef.current : 50;
       publishFan(targetFan);
       setFanSpeed(targetFan);
     }

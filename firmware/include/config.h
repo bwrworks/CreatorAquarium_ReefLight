@@ -42,7 +42,7 @@
 #define LEDC_CHANNEL_WHITE     2  // Day White (GPIO 32)
 #define LEDC_CHANNEL_UV        3  // Actinic UV (GPIO 33)
 
-#define LEDC_FAN_FREQ_HZ       1000
+#define LEDC_FAN_FREQ_HZ       25000
 #define LEDC_FAN_RESOLUTION    8
 #define LEDC_FAN_MAX_DUTY      ((1 << LEDC_FAN_RESOLUTION) - 1) // 255
 #define LEDC_CHANNEL_FAN       4
@@ -106,7 +106,7 @@
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.2.9"
+#define FIRMWARE_VERSION       "1.3.0"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"
