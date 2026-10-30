@@ -22,8 +22,8 @@
 // =========================================================================
 #define PIN_LED_BLUE1    18  // Royal Blue Channel 1 (6 LEDs)
 #define PIN_LED_BLUE2    19  // Royal Blue Channel 2 (4 LEDs)
-#define PIN_LED_WHITE    32  // White channel (4 LEDs)
-#define PIN_LED_UV       33  // UV channel (2 LEDs)
+#define PIN_LED_WHITE    33  // White channel (4 LEDs)
+#define PIN_LED_UV       32  // UV channel (2 LEDs)
 #define PIN_FAN_PWM       4  // 1 Electronics cooling fan
 
 #define PIN_I2C_SDA      21  // Shared I2C SDA for DS3231 RTC & SSD1306 OLED
@@ -39,8 +39,8 @@
 
 #define LEDC_CHANNEL_BLUE1     0  // Royal Blue 1 (GPIO 18)
 #define LEDC_CHANNEL_BLUE2     1  // Royal Blue 2 (GPIO 19)
-#define LEDC_CHANNEL_WHITE     2  // Day White (GPIO 32)
-#define LEDC_CHANNEL_UV        3  // Actinic UV (GPIO 33)
+#define LEDC_CHANNEL_WHITE     2  // Day White (GPIO 33)
+#define LEDC_CHANNEL_UV        3  // Actinic UV (GPIO 32)
 
 #define LEDC_FAN_FREQ_HZ       25000
 #define LEDC_FAN_RESOLUTION    8
@@ -106,7 +106,7 @@
 // Allowed OTA domain list (comma-separated, lowercased)
 #define DEFAULT_ALLOWED_OTA_HOSTS "github.com,raw.githubusercontent.com,bwrworks.github.io,reeflight.vercel.app"
 
-#define FIRMWARE_VERSION       "1.3.0"
+#define FIRMWARE_VERSION       "1.3.1"
 
 // LittleFS Paths
 #define STORAGE_SCHEDULES_DIR  "/schedules"

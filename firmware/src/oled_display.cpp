@@ -60,9 +60,9 @@ bool OledDisplayManager::begin() {
     pinMode(TFT_CS, OUTPUT);
     digitalWrite(TFT_CS, HIGH);
 
-    ledcSetup(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_FREQ_HZ, LEDC_DISPLAY_RESOLUTION);
-    ledcWrite(LEDC_CHANNEL_DISPLAY, LEDC_DISPLAY_MAX_DUTY); // full brightness until real value is applied
-    ledcAttachPin(TFT_LED, LEDC_CHANNEL_DISPLAY);
+    pinMode(TFT_LED, OUTPUT);
+    gpio_set_drive_capability((gpio_num_t)TFT_LED, GPIO_DRIVE_CAP_3);
+    digitalWrite(TFT_LED, HIGH);
 
     tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
     tftSPI.setFrequency(4000000); // 4MHz for rock-solid signal integrity over jumper wires
@@ -112,8 +112,14 @@ bool OledDisplayManager::begin() {
 }
 
 void OledDisplayManager::setBrightness(uint8_t brightness) {
-    if (brightness > 0 && brightness < 50) brightness = 50;
-    ledcWrite(LEDC_CHANNEL_DISPLAY, brightness);
+    if (!displayPresent) return;
+    if (brightness == 0) {
+        digitalWrite(TFT_LED, LOW);
+    } else {
+        pinMode(TFT_LED, OUTPUT);
+        gpio_set_drive_capability((gpio_num_t)TFT_LED, GPIO_DRIVE_CAP_3);
+        digitalWrite(TFT_LED, HIGH);
+    }
 }
 
 // =========================================================================
